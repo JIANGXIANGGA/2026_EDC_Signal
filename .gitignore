@@ -1,0 +1,78 @@
+build/
+mx.scratch/
+
+# 本机/助手状态
+.codex/
+.agents/
+
+# 本机工具与诊断输出
+Tools/
+
+# CMake/编译产物
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.o
+*.obj
+*.a
+*.lib
+*.d
+
+# STM32CubeMX 临时文件
+*.bak
+*.tmp
+*.launch
+
+# 保留可复现工程配置
+!.settings/
+!.vscode/
+
+# LVGL 仓库中与固件编译无关的资料，保留 lvgl/src 与配置文件
+lvgl/.devcontainer/
+lvgl/.github/
+lvgl/demos/
+lvgl/docs/
+lvgl/env_support/cmsis-pack/
+lvgl/env_support/esp/
+lvgl/env_support/pikascript/
+lvgl/env_support/qnx/
+lvgl/env_support/rt-thread/
+lvgl/examples/
+lvgl/scripts/
+lvgl/tests/
+lvgl/zephyr/
+lvgl/src/libs/barcode/
+lvgl/src/libs/bmp/
+lvgl/src/libs/ffmpeg/
+lvgl/src/libs/freetype/
+lvgl/src/libs/frogfs/
+lvgl/src/libs/FT800-FT813/
+lvgl/src/libs/gif/
+lvgl/src/libs/gltf/
+lvgl/src/libs/gstreamer/
+lvgl/src/libs/libjpeg_turbo/
+lvgl/src/libs/libpng/
+lvgl/src/libs/libwebp/
+lvgl/src/libs/lodepng/
+lvgl/src/libs/lz4/
+lvgl/src/libs/nanovg/
+lvgl/src/libs/qrcode/
+lvgl/src/libs/rlottie/
+lvgl/src/libs/svg/
+lvgl/src/libs/thorvg/
+lvgl/src/libs/tiny_ttf/
+lvgl/src/libs/tjpgd/
+lvgl/src/libs/vg_lite_driver/
+
+# CMSIS 示例、测试与预编译库，当前工程使用源码编译 FFT 子集
+Drivers/CMSIS/DSP/Examples/
+Drivers/CMSIS/DSP/DSP_Lib_TestSuite/
+Drivers/CMSIS/DSP/Lib/
+Drivers/CMSIS/DSP/PythonWrapper/
+Drivers/CMSIS/NN/
