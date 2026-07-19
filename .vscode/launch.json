@@ -14,6 +14,77 @@
             ],
             "runEntry": "main",
             "preBuild": ""
+        },
+        {
+            "name": "Debug G474 (Wireless CMSIS-DAP)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/G474.elf",
+            "servertype": "openocd",
+            "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
+            "gdbPath": "C:/Users/Admin/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
+            "interface": "swd",
+            "device": "STM32G474VE",
+            "configFiles": [
+                "interface/cmsis-dap.cfg",
+                "target/stm32g4x.cfg"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 1000"
+            ],
+            "preLaunchCommands": [
+                "set remotetimeout 10"
+            ],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none"
+        },
+        {
+            "name": "Release G474 (Wireless CMSIS-DAP)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Release/G474.elf",
+            "servertype": "openocd",
+            "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
+            "gdbPath": "C:/Users/Admin/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
+            "interface": "swd",
+            "device": "STM32G474VE",
+            "configFiles": [
+                "interface/cmsis-dap.cfg",
+                "target/stm32g4x.cfg"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 1000"
+            ],
+            "preLaunchCommands": [
+                "set remotetimeout 10"
+            ],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none"
+        },
+        {
+            "name": "Attach G474 (Wireless CMSIS-DAP, No Download)",
+            "type": "cortex-debug",
+            "request": "attach",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/G474.elf",
+            "servertype": "openocd",
+            "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
+            "gdbPath": "C:/Users/Admin/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
+            "interface": "swd",
+            "device": "STM32G474VE",
+            "configFiles": [
+                "interface/cmsis-dap.cfg",
+                "target/stm32g4x.cfg"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 1000"
+            ],
+            "preAttachCommands": [
+                "set remotetimeout 10"
+            ],
+            "showDevDebugOutput": "none"
         }
     ]
 }

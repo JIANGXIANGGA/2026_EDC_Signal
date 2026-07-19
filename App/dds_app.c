@@ -9,7 +9,7 @@
 
 #include "signal_service.h"
 
-#define DDS_APP_UI_REFRESH_PERIOD_MS 50U
+#define DDS_APP_UI_REFRESH_PERIOD_MS 30U
 #define DDS_APP_FREQ_STEP_HZ         10
 #define DDS_APP_AMPLITUDE_STEP       10
 

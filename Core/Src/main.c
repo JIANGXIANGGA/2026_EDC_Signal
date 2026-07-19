@@ -229,7 +229,6 @@ int main(void)
     Error_Handler();
   }
   
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET);
   ui_init(&ui_callbacks);
   dds_app_fill_ui_state(&ui_state);
   ui_update_signal_state(&ui_state);
