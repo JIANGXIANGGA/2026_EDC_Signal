@@ -19,14 +19,14 @@ typedef enum {
 
 /** @brief 一帧 ADC 实数 FFT 的测量结果，幅度单位为 ADC 码值。 */
 typedef struct {
-    float dominant_frequency_hz;
-    float dominant_amplitude_codes;
-    float rms_codes;
-    float dc_offset_codes;
-    float frequency_resolution_hz;
-    uint32_t sample_rate_hz;
-    uint32_t generation;
-    uint16_t dominant_bin;
+    float dominant_frequency_hz;     /**< 插值后的主峰频率，单位 Hz。 */
+    float dominant_amplitude_codes;  /**< 主峰单边幅度，单位 ADC 码值。 */
+    float rms_codes;                 /**< 去直流后输入信号的有效值码数。 */
+    float dc_offset_codes;           /**< 输入信号的平均直流偏置码数。 */
+    float frequency_resolution_hz;   /**< 相邻 FFT 频点之间的频率间隔。 */
+    uint32_t sample_rate_hz;         /**< 生成本次结果时使用的采样率。 */
+    uint32_t generation;             /**< 结果更新代次，用于识别新帧。 */
+    uint16_t dominant_bin;           /**< 未插值主峰所在的 FFT 频点编号。 */
 } FftService_Result;
 
 /** @brief 初始化 1024 点实数 FFT 和 Hann 窗。 */

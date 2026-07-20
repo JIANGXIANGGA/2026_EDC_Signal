@@ -2,6 +2,7 @@
 
 #define ST7789_COMMAND_TIMEOUT_MS 10U
 
+/** @brief 结束像素 DMA 事务、释放片选并通知上层。 */
 static void st7789_bus_finish_transfer(st7789_bus_t *bus, bool success)
 {
     HAL_GPIO_WritePin(bus->config.cs_port,
@@ -14,6 +15,7 @@ static void st7789_bus_finish_transfer(st7789_bus_t *bus, bool success)
     }
 }
 
+/** @brief 校验并保存 ST7789 SPI 与 GPIO 总线配置。 */
 HAL_StatusTypeDef ST7789_Bus_Init(st7789_bus_t *bus,
                                   const st7789_bus_config_t *config)
 {
@@ -40,6 +42,7 @@ HAL_StatusTypeDef ST7789_Bus_Init(st7789_bus_t *bus,
     return HAL_OK;
 }
 
+/** @brief 按 ST7789 时序拉低复位信号并等待面板启动。 */
 void ST7789_Bus_ResetPanel(st7789_bus_t *bus)
 {
     if((bus == NULL) || !bus->initialized) {
@@ -56,6 +59,7 @@ void ST7789_Bus_ResetPanel(st7789_bus_t *bus)
     HAL_Delay(150U);
 }
 
+/** @brief 设置可选的显示背光 GPIO 输出状态。 */
 void ST7789_Bus_SetBacklight(st7789_bus_t *bus, bool enabled)
 {
     if((bus == NULL) || !bus->initialized ||
@@ -68,13 +72,14 @@ void ST7789_Bus_SetBacklight(st7789_bus_t *bus, bool enabled)
                       enabled ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
+/** @brief 发送 ST7789 命令及其可选参数。 */
 HAL_StatusTypeDef ST7789_Bus_WriteCommand(st7789_bus_t *bus,
                                           const uint8_t *command,
                                           size_t command_size,
                                           const uint8_t *parameters,
                                           size_t parameter_size)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* SPI 命令或参数传输的 HAL 返回状态。 */
 
     if((bus == NULL) || !bus->initialized || bus->transfer_busy ||
        (command == NULL) || (command_size == 0U) ||
@@ -110,13 +115,14 @@ HAL_StatusTypeDef ST7789_Bus_WriteCommand(st7789_bus_t *bus,
     return status;
 }
 
+/** @brief 发送显存写入命令并使用 SPI DMA 异步发送像素数据。 */
 HAL_StatusTypeDef ST7789_Bus_WritePixelsDma(st7789_bus_t *bus,
                                             const uint8_t *command,
                                             size_t command_size,
                                             uint8_t *pixels,
                                             size_t pixel_size)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* SPI 命令及像素 DMA 启动的 HAL 返回状态。 */
 
     if((bus == NULL) || !bus->initialized || bus->transfer_busy ||
        (command == NULL) || (command_size == 0U) || (pixels == NULL) ||
@@ -159,6 +165,7 @@ HAL_StatusTypeDef ST7789_Bus_WritePixelsDma(st7789_bus_t *bus,
     return status;
 }
 
+/** @brief 处理匹配 SPI 的像素 DMA 发送完成事件。 */
 void ST7789_Bus_TxCpltCallback(st7789_bus_t *bus,
                                SPI_HandleTypeDef *spi)
 {
@@ -168,6 +175,7 @@ void ST7789_Bus_TxCpltCallback(st7789_bus_t *bus,
     }
 }
 
+/** @brief 处理匹配 SPI 的像素 DMA 发送错误事件。 */
 void ST7789_Bus_ErrorCallback(st7789_bus_t *bus,
                               SPI_HandleTypeDef *spi)
 {

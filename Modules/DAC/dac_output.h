@@ -11,12 +11,12 @@ extern "C" {
 
 /** @brief DAC 双缓冲运行统计。 */
 typedef struct {
-    uint32_t completed_block_count;
-    uint32_t underrun_count;
-    uint32_t error_count;
-    uint32_t recovery_count;
-    uint8_t running;
-    uint8_t recovery_pending;
+    uint32_t completed_block_count; /**< DMA 已输出的半缓冲区总数。 */
+    uint32_t underrun_count;        /**< DMA 切换时下一半区未就绪的次数。 */
+    uint32_t error_count;           /**< DAC 或 DMA 传输错误累计次数。 */
+    uint32_t recovery_count;        /**< 主循环成功恢复 DAC 输出的次数。 */
+    uint8_t running;                /**< DAC 循环 DMA 当前是否正在运行。 */
+    uint8_t recovery_pending;       /**< 是否存在等待主循环处理的恢复请求。 */
 } DAC_Output_Status;
 
 /**

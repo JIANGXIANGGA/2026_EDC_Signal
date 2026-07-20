@@ -6,17 +6,18 @@
 #include "lv_port_display.h"
 
 static uint16_t g_draw_buffer_1[LV_PORT_DISPLAY_MAX_HOR_RES *
-                                LV_PORT_DISPLAY_BUF_LINES];
+                                LV_PORT_DISPLAY_BUF_LINES]; /* LVGL 局部渲染缓冲区 1。 */
 static uint16_t g_draw_buffer_2[LV_PORT_DISPLAY_MAX_HOR_RES *
-                                LV_PORT_DISPLAY_BUF_LINES];
+                                LV_PORT_DISPLAY_BUF_LINES]; /* LVGL 局部渲染缓冲区 2。 */
 
-static st7789_bus_t g_lcd_bus;
-static lv_display_t *g_display;
-static bool g_bus_error;
+static st7789_bus_t g_lcd_bus;  /* ST7789 底层 SPI 总线实例。 */
+static lv_display_t *g_display; /* LVGL 显示设备对象。 */
+static bool g_bus_error;        /* 命令阶段是否发生导致本次刷新中止的错误。 */
 
+/** @brief 将底层像素 DMA 完成事件转换为 LVGL 刷新完成通知。 */
 static void lv_port_display_transfer_complete(void *context, bool success)
 {
-    lv_display_t *display = (lv_display_t *)context;
+    lv_display_t *display = (lv_display_t *)context; /* 完成当前刷新的 LVGL 显示对象。 */
 
     LV_UNUSED(success);
     if(display != NULL) {
@@ -24,6 +25,7 @@ static void lv_port_display_transfer_complete(void *context, bool success)
     }
 }
 
+/** @brief 适配 LVGL ST7789 命令发送回调到底层总线。 */
 static void lv_port_display_send_command(lv_display_t *display,
                                          const uint8_t *command,
                                          size_t command_size,
@@ -40,6 +42,7 @@ static void lv_port_display_send_command(lv_display_t *display,
     }
 }
 
+/** @brief 适配 LVGL 像素刷新回调并启动底层 SPI DMA。 */
 static void lv_port_display_send_pixels(lv_display_t *display,
                                         const uint8_t *command,
                                         size_t command_size,
@@ -61,9 +64,10 @@ static void lv_port_display_send_pixels(lv_display_t *display,
     }
 }
 
+/** @brief 初始化 ST7789 总线、LVGL 显示对象和双渲染缓冲区。 */
 lv_display_t *lv_port_display_init(const lv_port_display_config_t *config)
 {
-    st7789_bus_config_t bus_config;
+    st7789_bus_config_t bus_config; /* 注入 LVGL 完成回调后的底层总线配置。 */
 
     if((config == NULL) || (config->horizontal_resolution == 0U) ||
        (config->vertical_resolution == 0U) ||
@@ -111,11 +115,13 @@ lv_display_t *lv_port_display_init(const lv_port_display_config_t *config)
     return g_display;
 }
 
+/** @brief 将 HAL SPI 发送完成事件转发给 ST7789 总线实例。 */
 void lv_port_display_tx_cplt_callback(SPI_HandleTypeDef *spi)
 {
     ST7789_Bus_TxCpltCallback(&g_lcd_bus, spi);
 }
 
+/** @brief 将 HAL SPI 错误事件转发给 ST7789 总线实例。 */
 void lv_port_display_error_callback(SPI_HandleTypeDef *spi)
 {
     ST7789_Bus_ErrorCallback(&g_lcd_bus, spi);

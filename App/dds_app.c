@@ -13,28 +13,29 @@
 #define DDS_APP_FREQ_STEP_HZ         10
 #define DDS_APP_AMPLITUDE_STEP       10
 
-static const uint32_t g_sample_rate_options[] = {
+static const uint32_t g_sample_rate_options[] = { /* 控制页允许选择的 ADC 采样率列表。 */
     SIGNAL_SERVICE_SAMPLE_RATE_20K_HZ,
     SIGNAL_SERVICE_SAMPLE_RATE_50K_HZ,
     SIGNAL_SERVICE_SAMPLE_RATE_100K_HZ,
     SIGNAL_SERVICE_SAMPLE_RATE_200K_HZ,
 };
 
-static int32_t g_adc_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT];
-static int32_t g_dds_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT];
-static int32_t g_spectrum_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT];
-static uint32_t g_adc_generation;
-static uint32_t g_dds_generation;
-static uint32_t g_spectrum_generation;
-static uint32_t g_last_ui_refresh_tick;
-static uint8_t g_sample_rate_index;
-static bool g_ui_dirty;
+static int32_t g_adc_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT];      /* UI 使用的 ADC 时域数据点。 */
+static int32_t g_dds_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT];      /* UI 使用的 DDS 时域数据点。 */
+static int32_t g_spectrum_points[SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT]; /* UI 使用的 FFT 频谱数据点。 */
+static uint32_t g_adc_generation;       /* 已复制到 UI 缓冲区的 ADC 快照代次。 */
+static uint32_t g_dds_generation;       /* 已复制到 UI 缓冲区的 DDS 快照代次。 */
+static uint32_t g_spectrum_generation;  /* 已复制到 UI 缓冲区的频谱快照代次。 */
+static uint32_t g_last_ui_refresh_tick; /* 上一次允许 UI 刷新的系统毫秒计数。 */
+static uint8_t g_sample_rate_index;     /* 当前采样率在可选列表中的索引。 */
+static bool g_ui_dirty;                 /* UI 状态是否发生变化并等待刷新。 */
 
-static int8_t g_pending_sample_rate_step;
-static int32_t g_pending_frequency_delta;
-static int16_t g_pending_amplitude_delta;
-static uint8_t g_pending_waveform_next;
+static int8_t g_pending_sample_rate_step;  /* 待处理的采样率列表调整方向。 */
+static int32_t g_pending_frequency_delta;  /* 待叠加到 DDS 频率的增量，单位 Hz。 */
+static int16_t g_pending_amplitude_delta;  /* 待叠加到 DDS 幅度的百分比增量。 */
+static uint8_t g_pending_waveform_next;    /* 是否收到切换到下一波形的请求。 */
 
+/** @brief 将 DDS 波形枚举转换为界面显示文本。 */
 static const char *dds_app_waveform_text(dds_waveform_t waveform)
 {
     switch(waveform) {
@@ -48,20 +49,21 @@ static const char *dds_app_waveform_text(dds_waveform_t waveform)
     }
 }
 
+/** @brief 查找与实际采样率最接近的界面采样率选项。 */
 static uint8_t dds_app_find_sample_rate_index(uint32_t sample_rate_hz)
 {
-    uint8_t index;
-    uint8_t nearest_index = 0U;
-    uint32_t nearest_difference = UINT32_MAX;
+    uint8_t index;                  /* 遍历采样率选项的数组索引。 */
+    uint8_t nearest_index = 0U;     /* 与当前实际采样率最接近的选项索引。 */
+    uint32_t nearest_difference = UINT32_MAX; /* 当前找到的最小采样率差值。 */
 
     for(index = 0U;
         index < (uint8_t)(sizeof(g_sample_rate_options) /
                           sizeof(g_sample_rate_options[0]));
         index++) {
-        uint32_t option = g_sample_rate_options[index];
+        uint32_t option = g_sample_rate_options[index]; /* 当前检查的候选采样率。 */
         uint32_t difference = (option > sample_rate_hz) ?
                               (option - sample_rate_hz) :
-                              (sample_rate_hz - option);
+                              (sample_rate_hz - option); /* 候选值与实际采样率的绝对差。 */
 
         if(difference < nearest_difference) {
             nearest_difference = difference;
@@ -71,6 +73,7 @@ static uint8_t dds_app_find_sample_rate_index(uint32_t sample_rate_hz)
     return nearest_index;
 }
 
+/** @brief 记录等待主循环处理的采样率调整方向。 */
 static void dds_app_queue_sample_rate_step(int8_t step)
 {
     if(step < 0) {
@@ -81,13 +84,14 @@ static void dds_app_queue_sample_rate_step(int8_t step)
     }
 }
 
+/** @brief 在主循环中集中应用界面提交的参数修改请求。 */
 static void dds_app_apply_requests(void)
 {
-    SignalService_State state;
-    int8_t sample_rate_step = g_pending_sample_rate_step;
-    int32_t frequency_delta = g_pending_frequency_delta;
-    int16_t amplitude_delta = g_pending_amplitude_delta;
-    uint8_t waveform_next = g_pending_waveform_next;
+    SignalService_State state; /* 应用控制请求前读取的信号服务状态。 */
+    int8_t sample_rate_step = g_pending_sample_rate_step; /* 本轮消费的采样率调整方向。 */
+    int32_t frequency_delta = g_pending_frequency_delta; /* 本轮消费的 DDS 频率增量。 */
+    int16_t amplitude_delta = g_pending_amplitude_delta; /* 本轮消费的 DDS 幅度增量。 */
+    uint8_t waveform_next = g_pending_waveform_next;     /* 本轮是否切换 DDS 波形。 */
 
     g_pending_sample_rate_step = 0;
     g_pending_frequency_delta = 0;
@@ -100,10 +104,10 @@ static void dds_app_apply_requests(void)
 
     if(sample_rate_step != 0) {
         int32_t next_index = (int32_t)g_sample_rate_index +
-                             (int32_t)sample_rate_step;
+                             (int32_t)sample_rate_step; /* 调整后待应用的采样率选项索引。 */
         int32_t max_index =
             (int32_t)(sizeof(g_sample_rate_options) /
-                      sizeof(g_sample_rate_options[0])) - 1;
+                      sizeof(g_sample_rate_options[0])) - 1; /* 采样率选项数组的最大有效索引。 */
 
         if(next_index < 0) {
             next_index = 0;
@@ -112,7 +116,7 @@ static void dds_app_apply_requests(void)
             next_index = max_index;
         }
         if((uint8_t)next_index != g_sample_rate_index) {
-            uint32_t actual_rate;
+            uint32_t actual_rate; /* 定时器实际能够生成的 ADC 采样率。 */
 
             if(SignalService_SetSampleRate(
                    g_sample_rate_options[next_index],
@@ -126,7 +130,7 @@ static void dds_app_apply_requests(void)
 
     if(frequency_delta != 0) {
         int64_t requested = (int64_t)state.dds_frequency_hz +
-                            frequency_delta;
+                            frequency_delta; /* 应用增量后、限幅前的 DDS 目标频率。 */
 
         if(requested < 0) {
             requested = 0;
@@ -139,7 +143,7 @@ static void dds_app_apply_requests(void)
 
     if(amplitude_delta != 0) {
         int32_t requested = (int32_t)state.dds_amplitude_percent +
-                            amplitude_delta;
+                            amplitude_delta; /* 应用增量后、限幅前的 DDS 目标幅度。 */
 
         if(requested < 0) {
             requested = 0;
@@ -156,7 +160,7 @@ static void dds_app_apply_requests(void)
     if(waveform_next != 0U) {
         dds_waveform_t waveform =
             (dds_waveform_t)(((uint32_t)state.dds_waveform + 1U) %
-                             (uint32_t)DDS_WAVE_COUNT);
+                             (uint32_t)DDS_WAVE_COUNT); /* 循环切换后的下一种 DDS 波形。 */
 
         if(SignalService_SetDdsWaveform(waveform) == HAL_OK) {
             g_ui_dirty = true;
@@ -164,9 +168,10 @@ static void dds_app_apply_requests(void)
     }
 }
 
+/** @brief 将 Service 层新生成的数据快照复制到稳定的 UI 缓冲区。 */
 static void dds_app_copy_new_snapshots(void)
 {
-    SignalService_State state;
+    SignalService_State state; /* 用于判断各类显示快照是否更新的服务状态。 */
 
     if(SignalService_GetState(&state) != HAL_OK) {
         return;
@@ -198,11 +203,12 @@ static void dds_app_copy_new_snapshots(void)
     }
 }
 
+/** @brief 初始化信号服务及 Application 层状态。 */
 HAL_StatusTypeDef dds_app_init(TIM_HandleTypeDef *adc_sample_timer,
                                TIM_HandleTypeDef *dds_sample_timer)
 {
-    SignalService_State state;
-    uint32_t index;
+    SignalService_State state; /* 初始化后读取的信号服务状态。 */
+    uint32_t index;            /* 清零三路 UI 数据点数组的索引。 */
 
     for(index = 0U; index < SIGNAL_SERVICE_SNAPSHOT_POINT_COUNT; index++) {
         g_adc_points[index] = 0;
@@ -232,44 +238,52 @@ HAL_StatusTypeDef dds_app_init(TIM_HandleTypeDef *adc_sample_timer,
     return HAL_OK;
 }
 
+/** @brief 请求将 ADC 采样率切换到较低一档。 */
 void dds_app_request_sample_rate_down(void)
 {
     dds_app_queue_sample_rate_step(-1);
 }
 
+/** @brief 请求将 ADC 采样率切换到较高一档。 */
 void dds_app_request_sample_rate_up(void)
 {
     dds_app_queue_sample_rate_step(1);
 }
 
+/** @brief 请求降低 DDS 输出频率。 */
 void dds_app_request_freq_down(void)
 {
     g_pending_frequency_delta -= DDS_APP_FREQ_STEP_HZ;
 }
 
+/** @brief 请求提高 DDS 输出频率。 */
 void dds_app_request_freq_up(void)
 {
     g_pending_frequency_delta += DDS_APP_FREQ_STEP_HZ;
 }
 
+/** @brief 请求降低 DDS 输出幅度。 */
 void dds_app_request_amplitude_down(void)
 {
     g_pending_amplitude_delta -= DDS_APP_AMPLITUDE_STEP;
 }
 
+/** @brief 请求提高 DDS 输出幅度。 */
 void dds_app_request_amplitude_up(void)
 {
     g_pending_amplitude_delta += DDS_APP_AMPLITUDE_STEP;
 }
 
+/** @brief 请求切换到下一种 DDS 波形。 */
 void dds_app_request_next_waveform(void)
 {
     g_pending_waveform_next = 1U;
 }
 
+/** @brief 处理控制请求和数据快照，并判断是否需要刷新 UI。 */
 bool dds_app_process(void)
 {
-    uint32_t now;
+    uint32_t now; /* 当前系统毫秒计数，用于限制 UI 刷新频率。 */
 
     dds_app_apply_requests();
     (void)SignalService_Process();
@@ -285,9 +299,10 @@ bool dds_app_process(void)
     return false;
 }
 
+/** @brief 将 Service 层状态整理为 UI 可直接使用的状态快照。 */
 void dds_app_fill_ui_state(ui_signal_state_t *state)
 {
-    SignalService_State service_state;
+    SignalService_State service_state; /* 从 Service 层读取并转换给 UI 的状态快照。 */
 
     if((state == NULL) ||
        (SignalService_GetState(&service_state) != HAL_OK)) {

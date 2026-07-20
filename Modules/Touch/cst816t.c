@@ -6,6 +6,7 @@
 #define CST816T_POSITION_HIGH_MASK 0x0FU
 #define CST816T_DEFAULT_PERIOD_MS 20U
 
+/** @brief 按 CST816T 时序执行硬件复位。 */
 static void cst816t_reset(cst816t_t *touch)
 {
     HAL_GPIO_WritePin(touch->config.reset_port,
@@ -18,17 +19,18 @@ static void cst816t_reset(cst816t_t *touch)
     HAL_Delay(50U);
 }
 
+/** @brief 对原始触摸坐标执行轴交换、限幅和镜像变换。 */
 static void cst816t_transform_point(cst816t_t *touch,
                                     uint16_t raw_x,
                                     uint16_t raw_y)
 {
-    uint16_t x = raw_x;
-    uint16_t y = raw_y;
-    uint16_t width = touch->config.horizontal_resolution;
-    uint16_t height = touch->config.vertical_resolution;
+    uint16_t x = raw_x; /* 经过轴交换和镜像后的 X 坐标工作值。 */
+    uint16_t y = raw_y; /* 经过轴交换和镜像后的 Y 坐标工作值。 */
+    uint16_t width = touch->config.horizontal_resolution;   /* 坐标映射区域宽度。 */
+    uint16_t height = touch->config.vertical_resolution;    /* 坐标映射区域高度。 */
 
     if(touch->config.swap_xy) {
-        uint16_t temporary = x;
+        uint16_t temporary = x; /* 交换 X/Y 坐标时使用的临时值。 */
         x = y;
         y = temporary;
     }
@@ -51,10 +53,11 @@ static void cst816t_transform_point(cst816t_t *touch,
     touch->y = (int32_t)y;
 }
 
+/** @brief 解析 I2C 接收帧并更新触摸坐标与按下状态。 */
 static void cst816t_parse_data(cst816t_t *touch)
 {
-    uint16_t raw_x;
-    uint16_t raw_y;
+    uint16_t raw_x; /* 从 I2C 接收帧解析出的原始 X 坐标。 */
+    uint16_t raw_y; /* 从 I2C 接收帧解析出的原始 Y 坐标。 */
 
     if((touch->rx_data[1] & CST816T_FINGER_COUNT_MASK) == 0U) {
         touch->pressed = false;
@@ -69,9 +72,10 @@ static void cst816t_parse_data(cst816t_t *touch)
     touch->pressed = true;
 }
 
+/** @brief 发起一次手势及坐标寄存器的 I2C DMA 读取。 */
 static void cst816t_start_read(cst816t_t *touch)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* 发起 I2C DMA 读取的 HAL 返回状态。 */
 
     touch->read_requested = false;
     touch->transfer_busy = true;
@@ -87,6 +91,7 @@ static void cst816t_start_read(cst816t_t *touch)
     }
 }
 
+/** @brief 初始化 CST816T 实例、坐标配置和异步读取状态。 */
 HAL_StatusTypeDef CST816T_Init(cst816t_t *touch,
                                const cst816t_config_t *config)
 {
@@ -115,16 +120,17 @@ HAL_StatusTypeDef CST816T_Init(cst816t_t *touch,
     return HAL_OK;
 }
 
+/** @brief 在主循环中解析完成帧并按周期调度下一次读取。 */
 void CST816T_Process(cst816t_t *touch)
 {
-    uint32_t now;
+    uint32_t now; /* 当前系统毫秒计数，用于周期读取调度。 */
 
     if((touch == NULL) || !touch->initialized) {
         return;
     }
 
     if(touch->transfer_complete) {
-        uint32_t primask = __get_PRIMASK();
+        uint32_t primask = __get_PRIMASK(); /* 进入临界区前的中断屏蔽状态。 */
 
         __disable_irq();
         touch->transfer_complete = false;
@@ -143,6 +149,7 @@ void CST816T_Process(cst816t_t *touch)
     }
 }
 
+/** @brief 将触摸外部中断转换为主循环读取请求。 */
 void CST816T_NotifyInterrupt(cst816t_t *touch)
 {
     if((touch != NULL) && touch->initialized) {
@@ -150,6 +157,7 @@ void CST816T_NotifyInterrupt(cst816t_t *touch)
     }
 }
 
+/** @brief 读取最近的屏幕坐标并返回当前按下状态。 */
 bool CST816T_GetPoint(const cst816t_t *touch,
                       int32_t *x,
                       int32_t *y)
@@ -167,6 +175,7 @@ bool CST816T_GetPoint(const cst816t_t *touch,
     return touch->pressed;
 }
 
+/** @brief 处理匹配 I2C 的 DMA 接收完成事件。 */
 void CST816T_MemRxCpltCallback(cst816t_t *touch,
                                I2C_HandleTypeDef *i2c)
 {
@@ -177,6 +186,7 @@ void CST816T_MemRxCpltCallback(cst816t_t *touch,
     }
 }
 
+/** @brief 处理匹配 I2C 的传输错误并释放忙状态。 */
 void CST816T_ErrorCallback(cst816t_t *touch,
                            I2C_HandleTypeDef *i2c)
 {

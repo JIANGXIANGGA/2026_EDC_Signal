@@ -37,11 +37,11 @@ typedef enum {
 } ui_action_t;
 
 typedef struct {
-    lv_obj_t * chart;
-    lv_chart_series_t * series;
+    lv_obj_t * chart;              /**< 波形视图对应的 LVGL 图表对象。 */
+    lv_chart_series_t * series;    /**< 图表中绑定外部数据的曲线对象。 */
 } ui_wave_view_t;
 
-static const ui_action_t g_actions[UI_ACTION_COUNT] = {
+static const ui_action_t g_actions[UI_ACTION_COUNT] = { /* 作为 LVGL 事件用户数据的稳定动作标识。 */
     UI_ACTION_SAMPLE_RATE_DOWN,
     UI_ACTION_SAMPLE_RATE_UP,
     UI_ACTION_DDS_FREQ_DOWN,
@@ -51,19 +51,20 @@ static const ui_action_t g_actions[UI_ACTION_COUNT] = {
     UI_ACTION_DDS_WAVEFORM_NEXT,
 };
 
-static ui_signal_callbacks_t g_callbacks;
-static ui_wave_view_t g_adc_view;
-static ui_wave_view_t g_dds_view;
-static ui_wave_view_t g_spectrum_view;
+static ui_signal_callbacks_t g_callbacks; /* Application 层注册的界面操作回调。 */
+static ui_wave_view_t g_adc_view;          /* ADC 时域图的对象引用集合。 */
+static ui_wave_view_t g_dds_view;          /* DDS 时域图的对象引用集合。 */
+static ui_wave_view_t g_spectrum_view;     /* ADC 频谱图的对象引用集合。 */
 
-static lv_obj_t * g_wave_summary_label;
-static lv_obj_t * g_fft_summary_label;
-static lv_obj_t * g_fft_status_label;
-static lv_obj_t * g_sample_rate_value_label;
-static lv_obj_t * g_dds_freq_value_label;
-static lv_obj_t * g_dds_amplitude_value_label;
-static lv_obj_t * g_dds_waveform_value_label;
+static lv_obj_t * g_wave_summary_label;         /* 波形页采样率和 DDS 频率摘要标签。 */
+static lv_obj_t * g_fft_summary_label;          /* 频谱页主峰频率和幅度摘要标签。 */
+static lv_obj_t * g_fft_status_label;           /* 频谱页 RMS 与驱动异常统计标签。 */
+static lv_obj_t * g_sample_rate_value_label;    /* 控制页当前采样率数值标签。 */
+static lv_obj_t * g_dds_freq_value_label;       /* 控制页当前 DDS 频率数值标签。 */
+static lv_obj_t * g_dds_amplitude_value_label;  /* 控制页当前 DDS 幅度数值标签。 */
+static lv_obj_t * g_dds_waveform_value_label;   /* 控制页当前 DDS 波形名称标签。 */
 
+/** @brief 为页面级容器设置无边框纯色背景样式。 */
 static void ui_set_container_style(lv_obj_t * obj, lv_color_t background)
 {
     lv_obj_set_style_bg_color(obj, background, LV_PART_MAIN);
@@ -72,6 +73,7 @@ static void ui_set_container_style(lv_obj_t * obj, lv_color_t background)
     lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
 }
 
+/** @brief 为波形或控制面板设置统一的边框、背景和内边距。 */
 static void ui_set_panel_style(lv_obj_t * obj)
 {
     lv_obj_set_style_bg_color(obj, lv_color_hex(UI_COLOR_PANEL), LV_PART_MAIN);
@@ -82,9 +84,10 @@ static void ui_set_panel_style(lv_obj_t * obj)
     lv_obj_set_style_pad_all(obj, 4, LV_PART_MAIN);
 }
 
+/** @brief 将按钮点击事件分发到 Application 层注册的控制回调。 */
 static void ui_control_event_cb(lv_event_t * event)
 {
-    const ui_action_t * action = lv_event_get_user_data(event);
+    const ui_action_t * action = lv_event_get_user_data(event); /* 当前按钮绑定的控制动作。 */
 
     if(action == NULL) {
         return;
@@ -139,13 +142,14 @@ static void ui_control_event_cb(lv_event_t * event)
     }
 }
 
+/** @brief 创建带动作标识的统一样式控制按钮。 */
 static lv_obj_t * ui_create_control_button(lv_obj_t * parent,
                                            const char * text,
                                            lv_coord_t width,
                                            ui_action_t action)
 {
-    lv_obj_t * button = lv_button_create(parent);
-    lv_obj_t * label;
+    lv_obj_t * button = lv_button_create(parent); /* 新建的控制按钮对象。 */
+    lv_obj_t * label;                             /* 按钮内部的文本标签对象。 */
 
     lv_obj_set_size(button, width, UI_CONTROL_BUTTON_HEIGHT);
     lv_obj_set_style_bg_color(button, lv_color_hex(UI_COLOR_BUTTON), LV_PART_MAIN);
@@ -164,11 +168,12 @@ static lv_obj_t * ui_create_control_button(lv_obj_t * parent,
     return button;
 }
 
+/** @brief 创建控制项标题和值标签，并返回可更新的值标签。 */
 static lv_obj_t * ui_create_control_text(lv_obj_t * parent, const char * title)
 {
-    lv_obj_t * text_container = lv_obj_create(parent);
-    lv_obj_t * title_label;
-    lv_obj_t * value_label;
+    lv_obj_t * text_container = lv_obj_create(parent); /* 标题与数值的纵向容器。 */
+    lv_obj_t * title_label;                         /* 控制项标题标签。 */
+    lv_obj_t * value_label;                         /* 控制项当前值标签。 */
 
     lv_obj_set_size(text_container, 0, lv_pct(100));
     lv_obj_set_flex_grow(text_container, 1);
@@ -196,13 +201,14 @@ static lv_obj_t * ui_create_control_text(lv_obj_t * parent, const char * title)
     return value_label;
 }
 
+/** @brief 创建包含数值、减号和加号按钮的参数调节行。 */
 static lv_obj_t * ui_create_adjust_row(lv_obj_t * parent,
                                        const char * title,
                                        ui_action_t down_action,
                                        ui_action_t up_action)
 {
-    lv_obj_t * row = lv_obj_create(parent);
-    lv_obj_t * value_label;
+    lv_obj_t * row = lv_obj_create(parent); /* 数值及增减按钮所在的横向行容器。 */
+    lv_obj_t * value_label;                  /* 返回给调用方更新内容的数值标签。 */
 
     lv_obj_set_size(row, lv_pct(100), UI_CONTROL_ROW_HEIGHT);
     ui_set_panel_style(row);
@@ -222,10 +228,11 @@ static lv_obj_t * ui_create_adjust_row(lv_obj_t * parent,
     return value_label;
 }
 
+/** @brief 创建 DDS 波形名称与切换按钮所在的控制行。 */
 static lv_obj_t * ui_create_waveform_row(lv_obj_t * parent)
 {
-    lv_obj_t * row = lv_obj_create(parent);
-    lv_obj_t * value_label;
+    lv_obj_t * row = lv_obj_create(parent); /* 波形名称及切换按钮所在的行容器。 */
+    lv_obj_t * value_label;                  /* 返回给调用方更新波形名称的标签。 */
 
     lv_obj_set_size(row, lv_pct(100), UI_CONTROL_ROW_HEIGHT);
     ui_set_panel_style(row);
@@ -244,6 +251,7 @@ static lv_obj_t * ui_create_waveform_row(lv_obj_t * parent)
     return value_label;
 }
 
+/** @brief 创建指定颜色和量程的波形图表面板。 */
 static void ui_create_wave_panel(lv_obj_t * parent,
                                  const char * title,
                                  lv_color_t color,
@@ -251,8 +259,8 @@ static void ui_create_wave_panel(lv_obj_t * parent,
                                  int32_t range_max,
                                  ui_wave_view_t * view)
 {
-    lv_obj_t * panel = lv_obj_create(parent);
-    lv_obj_t * title_label;
+    lv_obj_t * panel = lv_obj_create(parent); /* 标题与图表所在的波形面板。 */
+    lv_obj_t * title_label;                   /* 波形面板顶部的标题标签。 */
 
     lv_obj_set_size(panel, lv_pct(100), 0);
     lv_obj_set_flex_grow(panel, 1);
@@ -296,6 +304,7 @@ static void ui_create_wave_panel(lv_obj_t * parent,
     view->series = lv_chart_add_series(view->chart, color, LV_CHART_AXIS_PRIMARY_Y);
 }
 
+/** @brief 构建 ADC 输入与 DDS 输出的时域波形页面。 */
 static void ui_create_wave_tab(lv_obj_t * tab)
 {
     ui_set_container_style(tab, lv_color_hex(UI_COLOR_SCREEN));
@@ -330,6 +339,7 @@ static void ui_create_wave_tab(lv_obj_t * tab)
                          &g_dds_view);
 }
 
+/** @brief 构建 FFT 测量摘要与频谱图页面。 */
 static void ui_create_spectrum_tab(lv_obj_t * tab)
 {
     ui_set_container_style(tab, lv_color_hex(UI_COLOR_SCREEN));
@@ -382,6 +392,7 @@ static void ui_create_spectrum_tab(lv_obj_t * tab)
                          &g_spectrum_view);
 }
 
+/** @brief 构建采样率、DDS 频率、幅度和波形控制页面。 */
 static void ui_create_control_tab(lv_obj_t * tab)
 {
     ui_set_container_style(tab, lv_color_hex(UI_COLOR_SCREEN));
@@ -409,6 +420,7 @@ static void ui_create_control_tab(lv_obj_t * tab)
     g_dds_waveform_value_label = ui_create_waveform_row(tab);
 }
 
+/** @brief 将外部数据数组绑定到图表曲线并触发重绘。 */
 static void ui_update_wave_view(ui_wave_view_t * view,
                                 int32_t * points,
                                 uint16_t point_count)
@@ -425,14 +437,15 @@ static void ui_update_wave_view(ui_wave_view_t * view,
     lv_chart_refresh(view->chart);
 }
 
+/** @brief 初始化三页信号显示与控制界面。 */
 void ui_init(const ui_signal_callbacks_t * callbacks)
 {
-    lv_obj_t * screen = lv_screen_active();
-    lv_obj_t * tabview;
-    lv_obj_t * wave_tab;
-    lv_obj_t * spectrum_tab;
-    lv_obj_t * control_tab;
-    lv_obj_t * tab_bar;
+    lv_obj_t * screen = lv_screen_active(); /* 当前活动的 LVGL 根屏幕。 */
+    lv_obj_t * tabview;                     /* 承载三个功能页的标签视图。 */
+    lv_obj_t * wave_tab;                    /* ADC/DDS 时域波形页面。 */
+    lv_obj_t * spectrum_tab;                /* ADC FFT 频谱页面。 */
+    lv_obj_t * control_tab;                 /* 采样率与 DDS 参数控制页面。 */
+    lv_obj_t * tab_bar;                     /* 标签视图顶部的页面选择栏。 */
 
     g_callbacks = (ui_signal_callbacks_t){0};
     if(callbacks != NULL) {
@@ -482,9 +495,10 @@ void ui_init(const ui_signal_callbacks_t * callbacks)
     ui_create_control_tab(control_tab);
 }
 
+/** @brief 使用最新信号状态刷新标签、时域图和频谱图。 */
 void ui_update_signal_state(const ui_signal_state_t * state)
 {
-    const char * waveform_text;
+    const char * waveform_text; /* 空指针保护后的 DDS 波形显示文本。 */
 
     if(state == NULL) {
         return;
@@ -500,9 +514,9 @@ void ui_update_signal_state(const ui_signal_state_t * state)
     }
 
     if(g_fft_summary_label != NULL) {
-        uint32_t peak_hz = state->fft_peak_frequency_millihz / 1000U;
+        uint32_t peak_hz = state->fft_peak_frequency_millihz / 1000U; /* FFT 主峰频率的整数 Hz 部分。 */
         uint32_t peak_tenth_hz =
-            (state->fft_peak_frequency_millihz % 1000U) / 100U;
+            (state->fft_peak_frequency_millihz % 1000U) / 100U; /* FFT 主峰频率的小数十分位。 */
 
         lv_label_set_text_fmt(g_fft_summary_label,
                               "Peak %lu.%lu Hz   A %u",

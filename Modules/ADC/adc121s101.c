@@ -6,32 +6,33 @@
 #define ADC121S101_INVALID_HALF   0xFFU
 #define ADC121S101_COPY_ATTEMPTS  2U
 
-static SPI_HandleTypeDef *g_adc_spi;
-static TIM_HandleTypeDef *g_sample_timer;
-static DMA_HandleTypeDef *g_trigger_dma;
+static SPI_HandleTypeDef *g_adc_spi;       /* ADC121S101 使用的 SPI 外设句柄。 */
+static TIM_HandleTypeDef *g_sample_timer;  /* 产生采样节拍的定时器句柄。 */
+static DMA_HandleTypeDef *g_trigger_dma;   /* 将虚拟发送数据写入 SPI 的定时器 DMA 句柄。 */
 
 /* 两个半区在内存中连续，SPI RX DMA 将其视为一个 2048 点循环缓冲区。 */
 static uint16_t g_dma_buffer[ADC121S101_DMA_HALF_COUNT]
-                            [ADC121S101_BLOCK_SIZE];
-static uint16_t g_tx_dummy;
+                            [ADC121S101_BLOCK_SIZE]; /* SPI RX DMA Ping-Pong 接收缓冲区。 */
+static uint16_t g_tx_dummy; /* 每次采样时通过 SPI 发送的占位字。 */
 
 /* 以下元数据仅在 DMA 回调与主循环之间共享，中断中不处理采样数据。 */
-static volatile uint32_t g_buffer_sequence[ADC121S101_DMA_HALF_COUNT];
-static volatile uint32_t g_latest_sequence;
-static volatile uint32_t g_delivered_sequence;
-static volatile uint32_t g_completed_block_count;
-static volatile uint32_t g_dropped_block_count;
-static volatile uint32_t g_copy_retry_count;
-static volatile uint32_t g_error_count;
-static volatile uint32_t g_recovery_count;
-static volatile uint8_t g_latest_half;
-static volatile uint8_t g_active_half;
-static volatile uint8_t g_running;
-static volatile uint8_t g_recovery_pending;
+static volatile uint32_t g_buffer_sequence[ADC121S101_DMA_HALF_COUNT]; /* 各半区最近写入完成的序号。 */
+static volatile uint32_t g_latest_sequence;    /* DMA 最近发布的完整块序号。 */
+static volatile uint32_t g_delivered_sequence; /* 主循环最近成功消费的块序号。 */
+static volatile uint32_t g_completed_block_count; /* DMA 已完成的采样块总数。 */
+static volatile uint32_t g_dropped_block_count;   /* 新块覆盖未消费块的累计次数。 */
+static volatile uint32_t g_copy_retry_count;      /* 复制期间 DMA 回卷的累计次数。 */
+static volatile uint32_t g_error_count;           /* SPI 或 DMA 错误累计次数。 */
+static volatile uint32_t g_recovery_count;        /* 主循环成功恢复采样的累计次数。 */
+static volatile uint8_t g_latest_half;        /* 最近完成的 DMA 半区编号。 */
+static volatile uint8_t g_active_half;        /* DMA 当前正在写入的半区编号。 */
+static volatile uint8_t g_running;            /* 连续采样是否正在运行。 */
+static volatile uint8_t g_recovery_pending;   /* 是否需要主循环恢复采样。 */
 
+/** @brief 在临界区中重置 Ping-Pong 缓冲区的发布与消费序号。 */
 static void adc121s101_reset_stream_tracking(void)
 {
-    uint32_t primask = __get_PRIMASK();
+    uint32_t primask = __get_PRIMASK(); /* 进入临界区前的中断屏蔽状态。 */
 
     __disable_irq();
     g_buffer_sequence[0] = 0U;
@@ -43,10 +44,11 @@ static void adc121s101_reset_stream_tracking(void)
     __set_PRIMASK(primask);
 }
 
+/** @brief 在 DMA 回调中发布刚完成的半区并记录下一活动半区。 */
 static void adc121s101_publish_half(uint8_t completed_half,
                                     uint8_t next_active_half)
 {
-    uint32_t sequence;
+    uint32_t sequence; /* 本次发布块的新序号。 */
 
     if ((g_running == 0U) ||
         (completed_half >= ADC121S101_DMA_HALF_COUNT) ||
@@ -67,6 +69,7 @@ static void adc121s101_publish_half(uint8_t completed_half,
     g_latest_sequence = sequence;
 }
 
+/** @brief 在中断上下文停止新触发并向主循环发布恢复请求。 */
 static void adc121s101_notify_error(void)
 {
     if ((g_sample_timer == NULL) || (g_adc_spi == NULL) ||
@@ -84,6 +87,7 @@ static void adc121s101_notify_error(void)
     g_error_count++;
 }
 
+/** @brief 将 TIM 更新 DMA 错误转换为 ADC 采样流错误事件。 */
 static void adc121s101_trigger_dma_error_callback(DMA_HandleTypeDef *hdma)
 {
     if (hdma == g_trigger_dma) {
@@ -91,12 +95,13 @@ static void adc121s101_trigger_dma_error_callback(DMA_HandleTypeDef *hdma)
     }
 }
 
+/** @brief 绑定 SPI、采样定时器与触发 DMA，并清零双缓冲状态。 */
 HAL_StatusTypeDef ADC121S101_Init(SPI_HandleTypeDef *hspi,
                                   TIM_HandleTypeDef *sample_timer)
 {
-    DMA_HandleTypeDef *trigger_dma;
-    uint32_t half_index;
-    uint32_t sample_index;
+    DMA_HandleTypeDef *trigger_dma; /* TIM 更新事件对应的 DMA 句柄。 */
+    uint32_t half_index;            /* 初始化 Ping-Pong 半区的索引。 */
+    uint32_t sample_index;          /* 初始化半区内采样点的索引。 */
 
     if ((hspi == NULL) || (sample_timer == NULL) ||
         (hspi->hdmarx == NULL) ||
@@ -135,9 +140,10 @@ HAL_StatusTypeDef ADC121S101_Init(SPI_HandleTypeDef *hspi,
     return HAL_OK;
 }
 
+/** @brief 启动由定时器更新 DMA 驱动的 SPI 连续采样。 */
 HAL_StatusTypeDef ADC121S101_Start(void)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* HAL 启动操作的返回状态。 */
 
     if ((g_adc_spi == NULL) || (g_sample_timer == NULL) ||
         (g_trigger_dma == NULL) || (g_running != 0U)) {
@@ -175,10 +181,11 @@ HAL_StatusTypeDef ADC121S101_Start(void)
     return HAL_OK;
 }
 
+/** @brief 停止采样定时器并中止 SPI DMA 传输。 */
 HAL_StatusTypeDef ADC121S101_Stop(void)
 {
-    HAL_StatusTypeDef timer_status;
-    HAL_StatusTypeDef spi_status;
+    HAL_StatusTypeDef timer_status; /* 停止采样定时器的返回状态。 */
+    HAL_StatusTypeDef spi_status;   /* 中止 SPI DMA 的返回状态。 */
 
     if ((g_adc_spi == NULL) || (g_sample_timer == NULL)) {
         return HAL_ERROR;
@@ -196,9 +203,10 @@ HAL_StatusTypeDef ADC121S101_Stop(void)
     return spi_status;
 }
 
+/** @brief 在主循环中处理中断发布的采样流恢复请求。 */
 HAL_StatusTypeDef ADC121S101_Process(void)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* 当前恢复步骤的 HAL 返回状态。 */
 
     if (g_recovery_pending == 0U) {
         return HAL_OK;
@@ -222,6 +230,7 @@ HAL_StatusTypeDef ADC121S101_Process(void)
     return status;
 }
 
+/** @brief 处理 SPI RX DMA 前半区完成事件并发布半区 0。 */
 void ADC121S101_TxRxHalfCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == g_adc_spi) {
@@ -229,6 +238,7 @@ void ADC121S101_TxRxHalfCpltCallback(SPI_HandleTypeDef *hspi)
     }
 }
 
+/** @brief 处理 SPI RX DMA 全缓冲区完成事件并发布半区 1。 */
 void ADC121S101_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == g_adc_spi) {
@@ -236,6 +246,7 @@ void ADC121S101_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
     }
 }
 
+/** @brief 处理 SPI 错误事件并通知主循环恢复采样。 */
 void ADC121S101_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == g_adc_spi) {
@@ -243,10 +254,11 @@ void ADC121S101_ErrorCallback(SPI_HandleTypeDef *hspi)
     }
 }
 
+/** @brief 稳定复制最新采样块并提取每个 SPI 字的低 12 位。 */
 uint8_t ADC121S101_CopyLatestBlock(uint16_t *destination,
                                    uint32_t capacity)
 {
-    uint32_t attempt;
+    uint32_t attempt; /* 为避开 DMA 回卷而执行的复制尝试编号。 */
 
     if ((destination == NULL) ||
         (capacity < ADC121S101_BLOCK_SIZE) ||
@@ -255,11 +267,11 @@ uint8_t ADC121S101_CopyLatestBlock(uint16_t *destination,
     }
 
     for (attempt = 0U; attempt < ADC121S101_COPY_ATTEMPTS; attempt++) {
-        uint32_t primask;
-        uint32_t sequence;
-        uint32_t sample_index;
-        uint8_t half_index;
-        uint8_t stable;
+        uint32_t primask;      /* 进入临界区前的中断屏蔽状态。 */
+        uint32_t sequence;     /* 本次准备复制的采样块序号。 */
+        uint32_t sample_index; /* 复制块内采样点的索引。 */
+        uint8_t half_index;    /* 本次准备复制的 DMA 半区编号。 */
+        uint8_t stable;        /* 复制前后目标半区是否保持稳定。 */
 
         primask = __get_PRIMASK();
         __disable_irq();
@@ -301,18 +313,20 @@ uint8_t ADC121S101_CopyLatestBlock(uint16_t *destination,
     return 0U;
 }
 
+/** @brief 将最新块标记为已消费，用于丢弃重配置前的旧数据。 */
 void ADC121S101_DiscardPendingBlock(void)
 {
-    uint32_t primask = __get_PRIMASK();
+    uint32_t primask = __get_PRIMASK(); /* 进入临界区前的中断屏蔽状态。 */
 
     __disable_irq();
     g_delivered_sequence = g_latest_sequence;
     __set_PRIMASK(primask);
 }
 
+/** @brief 在临界区中复制 ADC 连续采样的运行统计。 */
 void ADC121S101_GetStatus(ADC121S101_Status *status)
 {
-    uint32_t primask;
+    uint32_t primask; /* 进入临界区前的中断屏蔽状态。 */
 
     if (status == NULL) {
         return;

@@ -27,23 +27,23 @@ typedef enum {
 } SignalService_ProcessEvent;
 
 typedef struct {
-    uint32_t sample_rate_hz;
-    uint32_t dds_frequency_hz;
-    uint32_t adc_snapshot_generation;
-    uint32_t dds_snapshot_generation;
-    uint32_t spectrum_snapshot_generation;
-    uint32_t fft_peak_frequency_millihz;
-    uint32_t fft_resolution_millihz;
-    uint32_t adc_dropped_block_count;
-    uint32_t adc_error_count;
-    uint32_t dac_underrun_count;
-    dds_waveform_t dds_waveform;
-    uint16_t fft_peak_amplitude_codes;
-    uint16_t adc_rms_codes;
-    uint8_t dds_amplitude_percent;
-    uint8_t adc_snapshot_valid;
-    uint8_t dds_snapshot_valid;
-    uint8_t spectrum_snapshot_valid;
+    uint32_t sample_rate_hz;                 /**< ADC 当前实际采样率，单位 Hz。 */
+    uint32_t dds_frequency_hz;               /**< DDS 当前输出频率，单位 Hz。 */
+    uint32_t adc_snapshot_generation;        /**< ADC 时域快照的更新代次。 */
+    uint32_t dds_snapshot_generation;        /**< DDS 时域快照的更新代次。 */
+    uint32_t spectrum_snapshot_generation;   /**< FFT 频谱快照的更新代次。 */
+    uint32_t fft_peak_frequency_millihz;     /**< FFT 主峰频率，单位 mHz。 */
+    uint32_t fft_resolution_millihz;         /**< FFT 频率分辨率，单位 mHz。 */
+    uint32_t adc_dropped_block_count;        /**< ADC 未及时消费而丢弃的块数。 */
+    uint32_t adc_error_count;                /**< ADC SPI/DMA 错误累计次数。 */
+    uint32_t dac_underrun_count;             /**< DAC 输出半区欠载累计次数。 */
+    dds_waveform_t dds_waveform;             /**< DDS 当前波形类型。 */
+    uint16_t fft_peak_amplitude_codes;       /**< FFT 主峰幅度，单位 ADC 码值。 */
+    uint16_t adc_rms_codes;                  /**< ADC 去直流信号的有效值码数。 */
+    uint8_t dds_amplitude_percent;           /**< DDS 当前幅度百分比。 */
+    uint8_t adc_snapshot_valid;              /**< ADC 时域快照是否有效。 */
+    uint8_t dds_snapshot_valid;              /**< DDS 时域快照是否有效。 */
+    uint8_t spectrum_snapshot_valid;         /**< FFT 频谱快照是否有效。 */
 } SignalService_State;
 
 /**

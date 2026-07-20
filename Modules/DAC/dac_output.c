@@ -12,20 +12,21 @@ typedef enum {
     DAC_BUFFER_READY
 } DAC_BufferState;
 
-static DAC_HandleTypeDef *g_output_dac;
-static uint16_t g_dac_buffer[DAC_OUTPUT_HALF_COUNT][DAC_OUTPUT_BLOCK_SIZE];
-static volatile DAC_BufferState g_buffer_state[DAC_OUTPUT_HALF_COUNT];
-static volatile uint32_t g_completed_block_count;
-static volatile uint32_t g_underrun_count;
-static volatile uint32_t g_error_count;
-static volatile uint32_t g_recovery_count;
-static volatile uint8_t g_running;
-static volatile uint8_t g_recovery_pending;
+static DAC_HandleTypeDef *g_output_dac; /* 执行波形输出的 DAC 外设句柄。 */
+static uint16_t g_dac_buffer[DAC_OUTPUT_HALF_COUNT][DAC_OUTPUT_BLOCK_SIZE]; /* DAC DMA Ping-Pong 输出缓冲区。 */
+static volatile DAC_BufferState g_buffer_state[DAC_OUTPUT_HALF_COUNT]; /* 各 DMA 半区的软件所有权状态。 */
+static volatile uint32_t g_completed_block_count; /* DMA 已完成输出的半区总数。 */
+static volatile uint32_t g_underrun_count;        /* 下一输出半区未及时就绪的累计次数。 */
+static volatile uint32_t g_error_count;           /* DAC 或 DMA 错误累计次数。 */
+static volatile uint32_t g_recovery_count;        /* 主循环成功恢复输出的累计次数。 */
+static volatile uint8_t g_running;                /* DAC 循环 DMA 是否正在运行。 */
+static volatile uint8_t g_recovery_pending;       /* 是否需要主循环恢复 DAC 输出。 */
 
+/** @brief 使用中点安全码填充两个 DAC DMA 半区。 */
 static void dac_output_fill_safe_code(void)
 {
-    uint32_t half_index;
-    uint32_t sample_index;
+    uint32_t half_index;   /* 待填充的 DAC Ping-Pong 半区索引。 */
+    uint32_t sample_index; /* 当前半区内的采样点索引。 */
 
     for (half_index = 0U;
          half_index < DAC_OUTPUT_HALF_COUNT;
@@ -38,6 +39,7 @@ static void dac_output_fill_safe_code(void)
     }
 }
 
+/** @brief 停止新的 DAC DMA 请求并向主循环发布恢复原因。 */
 static void dac_output_request_recovery(uint8_t is_error)
 {
     if ((g_output_dac == NULL) || (g_running == 0U)) {
@@ -55,6 +57,7 @@ static void dac_output_request_recovery(uint8_t is_error)
     }
 }
 
+/** @brief 在 DMA 回调中释放已完成半区并切换下一活动半区。 */
 static void dac_output_advance(uint8_t completed_half,
                                uint8_t next_active_half)
 {
@@ -74,6 +77,7 @@ static void dac_output_advance(uint8_t completed_half,
     g_buffer_state[next_active_half] = DAC_BUFFER_ACTIVE;
 }
 
+/** @brief 绑定 DAC 句柄并初始化 Ping-Pong 缓冲区软件状态。 */
 HAL_StatusTypeDef DAC_Output_Init(DAC_HandleTypeDef *hdac)
 {
     if ((hdac == NULL) || (hdac->DMA_Handle1 == NULL)) {
@@ -93,9 +97,10 @@ HAL_StatusTypeDef DAC_Output_Init(DAC_HandleTypeDef *hdac)
     return HAL_OK;
 }
 
+/** @brief 启动两个半区组成的 DAC 循环 DMA 输出。 */
 HAL_StatusTypeDef DAC_Output_Start(void)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* 启动 DAC DMA 的 HAL 返回状态。 */
 
     if ((g_output_dac == NULL) || (g_running != 0U)) {
         return HAL_ERROR;
@@ -115,9 +120,10 @@ HAL_StatusTypeDef DAC_Output_Start(void)
     return status;
 }
 
+/** @brief 停止 DAC Channel1 的 DMA 输出。 */
 HAL_StatusTypeDef DAC_Output_Stop(void)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* 停止 DAC DMA 的 HAL 返回状态。 */
 
     if (g_output_dac == NULL) {
         return HAL_ERROR;
@@ -128,9 +134,10 @@ HAL_StatusTypeDef DAC_Output_Stop(void)
     return status;
 }
 
+/** @brief 在主循环中处理欠载或 DMA 错误后的恢复请求。 */
 HAL_StatusTypeDef DAC_Output_Process(void)
 {
-    HAL_StatusTypeDef status;
+    HAL_StatusTypeDef status; /* 当前恢复步骤的 HAL 返回状态。 */
 
     if (g_recovery_pending == 0U) {
         return HAL_OK;
@@ -151,10 +158,11 @@ HAL_StatusTypeDef DAC_Output_Process(void)
     return status;
 }
 
+/** @brief 在临界区中领取一个当前未被 DMA 使用的可写半区。 */
 uint8_t DAC_Output_AcquireBuffer(uint16_t **buffer, uint8_t *buffer_index)
 {
-    uint32_t primask;
-    uint8_t index;
+    uint32_t primask; /* 进入临界区前的中断屏蔽状态。 */
+    uint8_t index;    /* 扫描可写 DMA 半区的索引。 */
 
     if ((buffer == NULL) || (buffer_index == NULL) ||
         (g_running == 0U)) {
@@ -177,10 +185,11 @@ uint8_t DAC_Output_AcquireBuffer(uint16_t **buffer, uint8_t *buffer_index)
     return 0U;
 }
 
+/** @brief 将填写完成的 DAC 半区标记为可供 DMA 输出。 */
 uint8_t DAC_Output_CommitBuffer(uint8_t buffer_index)
 {
-    uint32_t primask;
-    uint8_t committed = 0U;
+    uint32_t primask;       /* 进入临界区前的中断屏蔽状态。 */
+    uint8_t committed = 0U; /* 指示指定半区是否成功提交。 */
 
     if (buffer_index >= DAC_OUTPUT_HALF_COUNT) {
         return 0U;
@@ -197,6 +206,7 @@ uint8_t DAC_Output_CommitBuffer(uint8_t buffer_index)
     return committed;
 }
 
+/** @brief 处理 DAC DMA 前半区传输完成事件。 */
 void DAC_Output_HalfCpltCallback(DAC_HandleTypeDef *hdac)
 {
     if (hdac == g_output_dac) {
@@ -204,6 +214,7 @@ void DAC_Output_HalfCpltCallback(DAC_HandleTypeDef *hdac)
     }
 }
 
+/** @brief 处理 DAC DMA 全缓冲区传输完成事件。 */
 void DAC_Output_CpltCallback(DAC_HandleTypeDef *hdac)
 {
     if (hdac == g_output_dac) {
@@ -211,6 +222,7 @@ void DAC_Output_CpltCallback(DAC_HandleTypeDef *hdac)
     }
 }
 
+/** @brief 处理 DAC DMA 错误并通知主循环恢复。 */
 void DAC_Output_ErrorCallback(DAC_HandleTypeDef *hdac)
 {
     if (hdac == g_output_dac) {
@@ -218,9 +230,10 @@ void DAC_Output_ErrorCallback(DAC_HandleTypeDef *hdac)
     }
 }
 
+/** @brief 在临界区中复制 DAC 双缓冲运行统计。 */
 void DAC_Output_GetStatus(DAC_Output_Status *status)
 {
-    uint32_t primask;
+    uint32_t primask; /* 进入临界区前的中断屏蔽状态。 */
 
     if (status == NULL) {
         return;

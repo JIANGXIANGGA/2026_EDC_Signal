@@ -65,37 +65,44 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 /* HAL 回调仅转发给对应模块，避免在中断中执行整块数据处理。 */
+/** @brief 将 SPI DMA 前半区完成事件转发给 ADC Driver。 */
 void HAL_SPI_TxRxHalfCpltCallback(SPI_HandleTypeDef *hspi)
 {
   ADC121S101_TxRxHalfCpltCallback(hspi);
 }
 
+/** @brief 将 SPI DMA 全缓冲区完成事件转发给 ADC Driver。 */
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   ADC121S101_TxRxCpltCallback(hspi);
 }
 
+/** @brief 将 SPI DMA 发送完成事件转发给 LVGL 显示端口。 */
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   lv_port_display_tx_cplt_callback(hspi);
 }
 
+/** @brief 将 SPI 错误事件分别转发给 ADC 和显示模块。 */
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
   ADC121S101_ErrorCallback(hspi);
   lv_port_display_error_callback(hspi);
 }
 
+/** @brief 将 I2C DMA 接收完成事件转发给触摸输入端口。 */
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
   lv_port_indev_mem_rx_cplt_callback(hi2c);
 }
 
+/** @brief 将 I2C 错误事件转发给触摸输入端口。 */
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 {
   lv_port_indev_error_callback(hi2c);
 }
 
+/** @brief 将触摸 GPIO 外部中断转换为异步读取请求。 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == T_INT_Pin)
@@ -104,16 +111,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
 }
 
+/** @brief 将 DAC DMA 前半区完成事件转发给 DAC Driver。 */
 void HAL_DAC_ConvHalfCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 {
   DAC_Output_HalfCpltCallback(hdac);
 }
 
+/** @brief 将 DAC DMA 全缓冲区完成事件转发给 DAC Driver。 */
 void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 {
   DAC_Output_CpltCallback(hdac);
 }
 
+/** @brief 将 DAC DMA 错误事件转发给 DAC Driver。 */
 void HAL_DAC_ErrorCallbackCh1(DAC_HandleTypeDef *hdac)
 {
   DAC_Output_ErrorCallback(hdac);
@@ -157,6 +167,7 @@ int main(void)
   MX_I2C3_Init();
   MX_SPI4_Init();
   /* USER CODE BEGIN 2 */
+  /* 显示面板、SPI 总线和方向参数的启动配置。 */
   const lv_port_display_config_t display_config = {
     .bus = {
       .spi = &hspi4,
@@ -178,6 +189,7 @@ int main(void)
     .flags = LV_LCD_FLAG_NONE,
     .invert_colors = false,
   };
+  /* 触摸控制器、坐标映射和刷新周期的启动配置。 */
   const cst816t_config_t touch_config = {
     .i2c = &hi2c3,
     .reset_port = T_RST_GPIO_Port,
@@ -189,6 +201,7 @@ int main(void)
     .mirror_y = true,
     .refresh_period_ms = 20U,
   };
+  /* UI 控件动作到 Application 层请求函数的回调映射。 */
   const ui_signal_callbacks_t ui_callbacks = {
     .on_sample_rate_down = dds_app_request_sample_rate_down,
     .on_sample_rate_up = dds_app_request_sample_rate_up,
@@ -198,8 +211,8 @@ int main(void)
     .on_dds_amplitude_up = dds_app_request_amplitude_up,
     .on_dds_waveform_next = dds_app_request_next_waveform,
   };
-  ui_signal_state_t ui_state;
-  lv_display_t *display;
+  ui_signal_state_t ui_state; /* 主循环传递给 LVGL 的信号状态快照。 */
+  lv_display_t *display;      /* 初始化完成后的 LVGL 显示对象。 */
 
   if (ADC121S101_Init(&hspi2, &htim7) != HAL_OK)
   {

@@ -11,13 +11,13 @@ extern "C" {
 
 /** @brief ADC 连续采样运行统计。 */
 typedef struct {
-    uint32_t completed_block_count;
-    uint32_t dropped_block_count;
-    uint32_t copy_retry_count;
-    uint32_t error_count;
-    uint32_t recovery_count;
-    uint8_t running;
-    uint8_t recovery_pending;
+    uint32_t completed_block_count; /**< DMA 已完成的采样块总数。 */
+    uint32_t dropped_block_count;   /**< 因主循环未及时消费而丢弃的采样块数。 */
+    uint32_t copy_retry_count;      /**< 复制期间 DMA 回卷导致的重试次数。 */
+    uint32_t error_count;           /**< SPI 或 DMA 传输错误累计次数。 */
+    uint32_t recovery_count;        /**< 主循环成功恢复采样流的次数。 */
+    uint8_t running;                /**< 连续采样当前是否正在运行。 */
+    uint8_t recovery_pending;       /**< 是否存在等待主循环处理的恢复请求。 */
 } ADC121S101_Status;
 
 /**
