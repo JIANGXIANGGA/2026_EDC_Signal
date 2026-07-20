@@ -36,9 +36,6 @@
             "preLaunchCommands": [
                 "set remotetimeout 10"
             ],
-            "postLaunchCommands": [
-                "source lvgl/scripts/gdb/gdbinit.py"
-            ],
             "runToEntryPoint": "main",
             "showDevDebugOutput": "none"
         },
@@ -63,9 +60,6 @@
             "preLaunchCommands": [
                 "set remotetimeout 10"
             ],
-            "postLaunchCommands": [
-                "source lvgl/scripts/gdb/gdbinit.py"
-            ],
             "runToEntryPoint": "main",
             "showDevDebugOutput": "none"
         },
@@ -89,9 +83,6 @@
             ],
             "preAttachCommands": [
                 "set remotetimeout 10"
-            ],
-            "postAttachCommands": [
-                "source lvgl/scripts/gdb/gdbinit.py"
             ],
             "showDevDebugOutput": "none"
         }
