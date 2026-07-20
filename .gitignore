@@ -44,7 +44,10 @@ lvgl/env_support/pikascript/
 lvgl/env_support/qnx/
 lvgl/env_support/rt-thread/
 lvgl/examples/
-lvgl/scripts/
+lvgl/scripts/*
+!lvgl/scripts/gdb/
+!lvgl/scripts/gdb/**
+lvgl_dashboard.html
 lvgl/tests/
 lvgl/zephyr/
 lvgl/src/libs/barcode/
