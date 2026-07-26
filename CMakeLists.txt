@@ -54,12 +54,26 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    Modules/DDS/dds.c
+    Modules/AD9910/ad9910.c
+    Modules/DAC/dac_output.c
+    Modules/ADC/adc121s101.c
+    Services/ad9910_service.c
+    Services/ad9910_sweep_planner.c
+    Services/adc_dac_loopback_service.c
+    App/signal_app.c
+    App/ad9910_ram_waveform_app.c
+    App/ad9910_ram_waveform_presets.c
+    App/ad9910_demo_app.c
+    App/ad9910_demo_presets.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    Modules/DDS
+    Modules/AD9910
+    Modules/DAC
+    Modules/ADC
+    Services/
+    App
 )
 
 # Add project symbols (macros)

@@ -22,6 +22,7 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "ad9910_service.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,8 +58,6 @@
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_dac1_ch1;
 extern DAC_HandleTypeDef hdac1;
-extern DMA_HandleTypeDef hdma_i2c3_rx;
-extern I2C_HandleTypeDef hi2c3;
 extern DMA_HandleTypeDef hdma_spi2_rx;
 extern DMA_HandleTypeDef hdma_spi4_tx;
 extern SPI_HandleTypeDef hspi2;
@@ -276,34 +275,6 @@ void DMA1_Channel5_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles DMA1 channel6 global interrupt.
-  */
-void DMA1_Channel6_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Channel6_IRQn 0 */
-
-  /* USER CODE END DMA1_Channel6_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c3_rx);
-  /* USER CODE BEGIN DMA1_Channel6_IRQn 1 */
-
-  /* USER CODE END DMA1_Channel6_IRQn 1 */
-}
-
-/**
-  * @brief This function handles EXTI line[9:5] interrupts.
-  */
-void EXTI9_5_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
-
-  /* USER CODE END EXTI9_5_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(T_INT_Pin);
-  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
-
-  /* USER CODE END EXTI9_5_IRQn 1 */
-}
-
-/**
   * @brief This function handles SPI2 global interrupt.
   */
 void SPI2_IRQHandler(void)
@@ -346,34 +317,22 @@ void SPI4_IRQHandler(void)
   /* USER CODE END SPI4_IRQn 1 */
 }
 
-/**
-  * @brief This function handles I2C3 event interrupt / I2C3 wake-up interrupt through EXTI line 27.
-  */
-void I2C3_EV_IRQHandler(void)
-{
-  /* USER CODE BEGIN I2C3_EV_IRQn 0 */
-
-  /* USER CODE END I2C3_EV_IRQn 0 */
-  HAL_I2C_EV_IRQHandler(&hi2c3);
-  /* USER CODE BEGIN I2C3_EV_IRQn 1 */
-
-  /* USER CODE END I2C3_EV_IRQn 1 */
-}
-
-/**
-  * @brief This function handles I2C3 error interrupt.
-  */
-void I2C3_ER_IRQHandler(void)
-{
-  /* USER CODE BEGIN I2C3_ER_IRQn 0 */
-
-  /* USER CODE END I2C3_ER_IRQn 0 */
-  HAL_I2C_ER_IRQHandler(&hi2c3);
-  /* USER CODE BEGIN I2C3_ER_IRQn 1 */
-
-  /* USER CODE END I2C3_ER_IRQn 1 */
-}
-
 /* USER CODE BEGIN 1 */
+
+/**
+  * @brief AD9910 数字斜坡达到上、下限的通知中断。
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin)
+{
+  if (gpio_pin == GPIO_PIN_8)
+  {
+    AD9910_Service_OnRampLimitEvent();
+  }
+}
 
 /* USER CODE END 1 */

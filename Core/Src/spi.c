@@ -47,7 +47,7 @@ void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -76,12 +76,12 @@ void MX_SPI4_Init(void)
   /* USER CODE END SPI4_Init 1 */
   hspi4.Instance = SPI4;
   hspi4.Init.Mode = SPI_MODE_MASTER;
-  hspi4.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi4.Init.Direction = SPI_DIRECTION_1LINE;
   hspi4.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi4.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi4.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi4.Init.NSS = SPI_NSS_SOFT;
-  hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi4.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi4.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi4.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -162,7 +162,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     PE2     ------> SPI4_SCK
     PE6     ------> SPI4_MOSI
     */
-    GPIO_InitStruct.Pin = LCD_SCK_Pin|LCD_MOSI_Pin;
+    GPIO_InitStruct.Pin = AD9910_SCLK_Pin|AD9910_SDIO_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -236,7 +236,7 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
     PE2     ------> SPI4_SCK
     PE6     ------> SPI4_MOSI
     */
-    HAL_GPIO_DeInit(GPIOE, LCD_SCK_Pin|LCD_MOSI_Pin);
+    HAL_GPIO_DeInit(GPIOE, AD9910_SCLK_Pin|AD9910_SDIO_Pin);
 
     /* SPI4 DMA DeInit */
     HAL_DMA_DeInit(spiHandle->hdmatx);

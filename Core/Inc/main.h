@@ -57,16 +57,22 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LCD_SCK_Pin GPIO_PIN_2
-#define LCD_SCK_GPIO_Port GPIOE
-#define LCD_DC_Pin GPIO_PIN_3
-#define LCD_DC_GPIO_Port GPIOE
-#define LCD_CS_Pin GPIO_PIN_4
-#define LCD_CS_GPIO_Port GPIOE
-#define LCD_RST_Pin GPIO_PIN_5
-#define LCD_RST_GPIO_Port GPIOE
-#define LCD_MOSI_Pin GPIO_PIN_6
-#define LCD_MOSI_GPIO_Port GPIOE
+#define AD9910_SCLK_Pin GPIO_PIN_2
+#define AD9910_SCLK_GPIO_Port GPIOE
+#define AD9910_IO_UPDATE_Pin GPIO_PIN_3
+#define AD9910_IO_UPDATE_GPIO_Port GPIOE
+#define AD9910_CSB_Pin GPIO_PIN_4
+#define AD9910_CSB_GPIO_Port GPIOE
+#define AD9910_SDIO_Pin GPIO_PIN_6
+#define AD9910_SDIO_GPIO_Port GPIOE
+#define WHILE_TIME_Pin GPIO_PIN_3
+#define WHILE_TIME_GPIO_Port GPIOA
+#define AD9910_PROFILE0_Pin GPIO_PIN_7
+#define AD9910_PROFILE0_GPIO_Port GPIOE
+#define AD9910_PROFILE1_Pin GPIO_PIN_8
+#define AD9910_PROFILE1_GPIO_Port GPIOE
+#define AD9910_PROFILE2_Pin GPIO_PIN_9
+#define AD9910_PROFILE2_GPIO_Port GPIOE
 #define ADC121_CS_Pin GPIO_PIN_12
 #define ADC121_CS_GPIO_Port GPIOB
 #define ADC121_SCK_Pin GPIO_PIN_13
@@ -75,24 +81,14 @@ void Error_Handler(void);
 #define ADC121_MISO_GPIO_Port GPIOB
 #define ADC121_MOSI_Pin GPIO_PIN_15
 #define ADC121_MOSI_GPIO_Port GPIOB
-#define T_INT_Pin GPIO_PIN_6
-#define T_INT_GPIO_Port GPIOC
-#define T_INT_EXTI_IRQn EXTI9_5_IRQn
-#define T_RST_Pin GPIO_PIN_7
-#define T_RST_GPIO_Port GPIOC
-#define T_SCK_Pin GPIO_PIN_8
-#define T_SCK_GPIO_Port GPIOC
-#define T_SDA_Pin GPIO_PIN_9
-#define T_SDA_GPIO_Port GPIOC
+#define AD9910_DRCTL_Pin GPIO_PIN_6
+#define AD9910_DRCTL_GPIO_Port GPIOC
+#define AD9910_DRHOLD_Pin GPIO_PIN_7
+#define AD9910_DRHOLD_GPIO_Port GPIOC
+#define AD9910_DROVER_Pin GPIO_PIN_8
+#define AD9910_DROVER_GPIO_Port GPIOC
 
 /* USER CODE BEGIN Private defines */
-
-/* 2.0 英寸 ST7789/CST816T 模组；其他面板只需调整此处与 gap。 */
-#define LCD_HOR_RES               240U
-#define LCD_VER_RES               284U
-#define LCD_X_GAP                 0U
-#define LCD_Y_GAP                 0U
-
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

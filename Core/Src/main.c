@@ -20,13 +20,13 @@
 #include "main.h"
 #include "dac.h"
 #include "dma.h"
-#include "i2c.h"
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "signal_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,10 +93,12 @@ int main(void)
   MX_TIM7_Init();
   MX_DAC1_Init();
   MX_SPI2_Init();
-  MX_I2C3_Init();
   MX_SPI4_Init();
   /* USER CODE BEGIN 2 */
-  /* 当前只完成 CubeMX 外设初始化，外设启动将在后续里程碑中逐步加入。 */
+  if (Signal_App_Init(&hspi4, &hspi2, &htim7, &hdac1, &htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -106,7 +108,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* 后续只在主循环中执行数据处理和各层 Process 函数。 */
+    WHILE_TIME_GPIO_Port->BSRR = WHILE_TIME_Pin;
+    Signal_App_Process();
+    WHILE_TIME_GPIO_Port->BSRR = ((uint32_t)WHILE_TIME_Pin << 16U);
   }
   /* USER CODE END 3 */
 }
@@ -131,8 +135,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
-  RCC_OscInitStruct.PLL.PLLN = 28;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV3;
+  RCC_OscInitStruct.PLL.PLLN = 40;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
