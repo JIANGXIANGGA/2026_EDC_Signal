@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "stm32g4xx_hal.h"
+#include "waveform_analyzer_service.h"
 
 typedef struct {
     uint8_t initialized;
@@ -23,6 +24,16 @@ typedef struct {
     uint8_t dac_loopback_running;
     uint32_t dac_loopback_dropped_block_count;
     uint32_t dac_loopback_error_count;
+    uint8_t fft_ready;
+    waveform_analyzer_type_t waveform_type;
+    uint32_t fft_analysis_count;
+    uint32_t fft_sample_rate_hz;
+    float fft_bin_resolution_hz;
+    float detected_frequency_hz;
+    uint16_t waveform_peak_to_peak_code;
+    uint16_t waveform_average_code;
+    float waveform_rms_code;
+    float waveform_thd_percent;
 } signal_app_status_t;
 
 extern signal_app_status_t g_signal_app_status;
