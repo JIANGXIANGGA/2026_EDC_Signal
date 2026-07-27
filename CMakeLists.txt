@@ -61,6 +61,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Services/ad9910_sweep_planner.c
     Services/adc_dac_loopback_service.c
     App/signal_app.c
+    App/ad9910_signal_generator_app.c
+    App/tjc_ad9910_interface.c
     App/ad9910_ram_waveform_app.c
     App/ad9910_ram_waveform_presets.c
     App/ad9910_demo_app.c

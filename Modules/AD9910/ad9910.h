@@ -112,6 +112,10 @@ void AD9910_BuildRamProfile(uint8_t profile[AD9910_PROFILE_DATA_LENGTH],
                             ad9910_ram_mode_t mode,
                             uint8_t no_dwell_high,
                             uint8_t zero_crossing);
+void AD9910_BuildCFR1RamConfig(uint8_t cfr1[AD9910_CFR_DATA_LENGTH],
+                               const uint8_t base_cfr1[AD9910_CFR_DATA_LENGTH],
+                               ad9910_ram_destination_t destination,
+                               uint8_t ram_enable);
 void AD9910_BuildCFR1RamPlayback(uint8_t cfr1[AD9910_CFR_DATA_LENGTH],
                                  const uint8_t base_cfr1[AD9910_CFR_DATA_LENGTH],
                                  ad9910_ram_destination_t destination);

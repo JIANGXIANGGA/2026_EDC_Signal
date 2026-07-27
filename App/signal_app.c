@@ -2,18 +2,33 @@
 
 #include <stddef.h>
 
-#include "ad9910_demo_app.h"
-#include "ad9910_ram_waveform_app.h"
+#include "ad9910_signal_generator_app.h"
 #include "adc_dac_loopback_service.h"
 #include "adc121s101.h"
 #include "dac_output.h"
 
-#define SIGNAL_APP_USE_AD9910_RAM_PLAYBACK 1U
 #define SIGNAL_APP_ENABLE_ADC121S101 1U
-#define SIGNAL_APP_ENABLE_ADC_DAC_LOOPBACK 1U
+#define SIGNAL_APP_ENABLE_ADC_DAC_LOOPBACK 0U
+#define SIGNAL_APP_ENABLE_AD9910_RAM_AUTO_TEST 1U
 #define SIGNAL_APP_ADC_DAC_SAMPLE_RATE_HZ 1000000U
+#define SIGNAL_APP_AD9910_AUTO_TEST_BOOT_DELAY_MS 1000U
+#define SIGNAL_APP_AD9910_AUTO_TEST_HOLD_MS 2000U
+
+typedef enum {
+    SIGNAL_APP_AD9910_AUTO_TEST_WAIT_BOOT = 0,
+    SIGNAL_APP_AD9910_AUTO_TEST_WAIT_RAM_ACTIVE,
+    SIGNAL_APP_AD9910_AUTO_TEST_HOLD
+} signal_app_ad9910_auto_test_state_t;
+
+typedef struct {
+    signal_app_ad9910_auto_test_state_t state;
+    uint8_t preset_index;
+    uint32_t deadline_ms;
+} signal_app_ad9910_auto_test_context_t;
 
 signal_app_status_t g_signal_app_status;
+
+static signal_app_ad9910_auto_test_context_t g_signal_app_ad9910_auto_test;
 
 #if SIGNAL_APP_ENABLE_ADC121S101
 static uint16_t g_signal_app_adc_block[ADC_INPUT_BLOCK_SIZE];
@@ -71,6 +86,83 @@ static void Signal_App_UpdateStatus(void)
 #endif
 }
 
+static uint8_t Signal_App_TimeReached(uint32_t deadline_ms)
+{
+    return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
+}
+
+static void Signal_App_Ad9910AutoTest_Init(void)
+{
+    g_signal_app_ad9910_auto_test.state =
+        SIGNAL_APP_AD9910_AUTO_TEST_WAIT_BOOT;
+    g_signal_app_ad9910_auto_test.preset_index = 0U;
+    g_signal_app_ad9910_auto_test.deadline_ms =
+        HAL_GetTick() + SIGNAL_APP_AD9910_AUTO_TEST_BOOT_DELAY_MS;
+}
+
+static void Signal_App_Ad9910AutoTest_Process(void)
+{
+#if SIGNAL_APP_ENABLE_AD9910_RAM_AUTO_TEST
+    const ad9910_siggen_status_t *status = AD9910_SignalGenerator_GetStatus();
+    const uint32_t now_tick = HAL_GetTick();
+
+    switch (g_signal_app_ad9910_auto_test.state) {
+    case SIGNAL_APP_AD9910_AUTO_TEST_WAIT_BOOT:
+        if (Signal_App_TimeReached(
+                g_signal_app_ad9910_auto_test.deadline_ms) != 0U) {
+            (void)AD9910_SignalGenerator_SelectRamPreset(0U);
+            if (AD9910_SignalGenerator_SetMode(
+                    AD9910_SIGGEN_MODE_RAM_WAVEFORM) == HAL_OK) {
+                g_signal_app_ad9910_auto_test.preset_index = 0U;
+                g_signal_app_ad9910_auto_test.state =
+                    SIGNAL_APP_AD9910_AUTO_TEST_WAIT_RAM_ACTIVE;
+            }
+        }
+        break;
+
+    case SIGNAL_APP_AD9910_AUTO_TEST_WAIT_RAM_ACTIVE:
+        if ((status != NULL) &&
+            (status->active_mode == AD9910_SIGGEN_MODE_RAM_WAVEFORM) &&
+            (status->active_ram_preset ==
+             g_signal_app_ad9910_auto_test.preset_index) &&
+            (status->pending_apply == 0U)) {
+            g_signal_app_ad9910_auto_test.deadline_ms =
+                now_tick + SIGNAL_APP_AD9910_AUTO_TEST_HOLD_MS;
+            g_signal_app_ad9910_auto_test.state =
+                SIGNAL_APP_AD9910_AUTO_TEST_HOLD;
+        }
+        break;
+
+    case SIGNAL_APP_AD9910_AUTO_TEST_HOLD:
+        if (Signal_App_TimeReached(
+                g_signal_app_ad9910_auto_test.deadline_ms) != 0U) {
+            g_signal_app_ad9910_auto_test.preset_index =
+                (uint8_t)(g_signal_app_ad9910_auto_test.preset_index + 1U);
+            if (g_signal_app_ad9910_auto_test.preset_index >=
+                AD9910_SIGGEN_RAM_PRESET_COUNT) {
+                g_signal_app_ad9910_auto_test.preset_index = 0U;
+            }
+
+            (void)AD9910_SignalGenerator_SelectRamPreset(
+                g_signal_app_ad9910_auto_test.preset_index);
+            if (AD9910_SignalGenerator_SetMode(
+                    AD9910_SIGGEN_MODE_RAM_WAVEFORM) == HAL_OK) {
+                g_signal_app_ad9910_auto_test.state =
+                    SIGNAL_APP_AD9910_AUTO_TEST_WAIT_RAM_ACTIVE;
+            }
+        }
+        break;
+
+    default:
+        g_signal_app_ad9910_auto_test.state =
+            SIGNAL_APP_AD9910_AUTO_TEST_WAIT_BOOT;
+        break;
+    }
+#else
+    (void)g_signal_app_ad9910_auto_test;
+#endif
+}
+
 HAL_StatusTypeDef Signal_App_Init(SPI_HandleTypeDef *ad9910_spi,
                                   SPI_HandleTypeDef *adc_spi,
                                   TIM_HandleTypeDef *adc_timer,
@@ -79,14 +171,12 @@ HAL_StatusTypeDef Signal_App_Init(SPI_HandleTypeDef *ad9910_spi,
 {
     HAL_StatusTypeDef status;
 
-#if SIGNAL_APP_USE_AD9910_RAM_PLAYBACK
-    status = AD9910_Ram_Waveform_App_Init(ad9910_spi);
-#else
-    status = AD9910_Demo_App_Init(ad9910_spi);
-#endif
+    status = AD9910_SignalGenerator_App_Init(ad9910_spi);
     if (status != HAL_OK) {
         return status;
     }
+
+    Signal_App_Ad9910AutoTest_Init();
 
 #if SIGNAL_APP_ENABLE_ADC121S101
     status = ADC_Input_Init(adc_spi, adc_timer);
@@ -124,11 +214,8 @@ HAL_StatusTypeDef Signal_App_Init(SPI_HandleTypeDef *ad9910_spi,
 
 void Signal_App_Process(void)
 {
-#if SIGNAL_APP_USE_AD9910_RAM_PLAYBACK
-    AD9910_Ram_Waveform_App_Process();
-#else
-    AD9910_Demo_App_Process();
-#endif
+    AD9910_SignalGenerator_App_Process();
+    Signal_App_Ad9910AutoTest_Process();
 
 #if SIGNAL_APP_ENABLE_ADC121S101
     (void)ADC_Process();

@@ -108,9 +108,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    WHILE_TIME_GPIO_Port->BSRR = WHILE_TIME_Pin;
     Signal_App_Process();
-    WHILE_TIME_GPIO_Port->BSRR = ((uint32_t)WHILE_TIME_Pin << 16U);
   }
   /* USER CODE END 3 */
 }

@@ -28,9 +28,9 @@
 | SPI2 SCLK | 10.625 MHz，满足 ADC121S101 的 10~20 MHz 规格 |
 | ADC 采样节拍 | TIM7，100 kHz，更新事件 DMA |
 | DAC 输出 | DAC1 CH1，PA4，TIM6 TRGO 100 kHz |
-| AD9910 | SPI4 10.625 MHz，PE2 SCLK，PE6 SDIO，PE3 IO_UPDATE，PE4 CSB；PE7/PE8/PE9 为 PF0/PF1/PF2，PC6/PC7/PC8 为 DRC/DPH/DRO |
+| AD9910 | SPI4 10.625 MHz，PE2 SCK，PE6 SDIO，PB5 CSB，PD13 IOUP；PA15/PD4/PC9 为 Profile0/Profile1/Profile2，PF9/PD3/PD15 为 DRC/DPH/DRO |
 | AD9910 供电 | 模块独立 DC 5 V / 1 A，与 STM32G474 共地；控制信号为 3.3 V |
-| 已释放 GPIO | PC9（PC6/PC7/PC8 已用于 DRC/DPH/DRO） |
+| AD9910 固定电平 | RST、PWR、TEN、OSK 按当前接口图接 DGND；PLL、PD、RSO、SYC、SDO 未接 MCU |
 
 CubeMX 生成文件只允许在 `USER CODE BEGIN/END` 区域添加自有代码。Driver、Service 和 Application 代码放在独立模块中，不直接写进生成文件。
 
@@ -47,13 +47,24 @@ cmake --build --preset Debug
 D:\01_Projects\Obsidian\电赛信号题\第三阶段-进阶\STM32G474信号项目渐进式重写流程.md
 ```
 
-## AD9910 代码内信号发生器
+## AD9910 信号发生器
 
-当前 `main.c` 默认通过 `App/signal_app.c` 启动 `App/ad9910_ram_waveform_app.c`，使用 AD9910 内部 RAM 回放自定义幅度波形，不使用 STM32 DAC 输出口。RAM 回放参数和波形表在 `App/ad9910_ram_waveform_presets.c` 中修改。
+当前 `main.c` 默认通过 `App/signal_app.c` 启动 `App/ad9910_signal_generator_app.c`。该 Application 面向后续 TJC 串口屏控制，支持两类输出：
 
-如果需要恢复原来的 AD9910 单音/扫频演示，将 `App/signal_app.c` 中的 `SIGNAL_APP_USE_AD9910_RAM_PLAYBACK` 改为 `0U`。
+- 单音模式：上电默认 1 MHz、100%、0 度，只维护一组实时参数，输出为 AD9910 DDS 正弦。
+- RAM 回放模式：保留 8 个可编辑 RAM 预设槽；当前调试版先使用频率 RAM 验证，preset0~7 分别输出 1~8 MHz 正弦。
+- 软件自动测试：上电先输出 1 MHz 单音，约 1 秒后自动切到 RAM preset0，并按 preset0~7 每 2 秒循环切换，便于示波器观察。
 
-原 `App/ad9910_demo_app.c` 无需串口屏，上电后自动加载代码内预设并运行。支持：
+TJC 串口屏预留入口在 `App/tjc_ad9910_interface.c`：
+
+```c
+HAL_StatusTypeDef TJC_AD9910_Interface_Dispatch(
+    const ad9910_siggen_command_t *command);
+```
+
+后续串口屏解析层只需要把页面控件值填入 `ad9910_siggen_command_t`，不要直接调用 Driver 或改 AD9910 寄存器。
+
+原 `App/ad9910_demo_app.c` 和 `App/ad9910_ram_waveform_app.c` 保留为参考示例，不再作为默认入口。原 demo 支持：
 
 - 固定频率输出。
 - 单次线性扫频，到达终点后转为固定终止频率。

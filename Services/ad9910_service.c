@@ -8,26 +8,60 @@
 #define AD9910_SERVICE_DEFAULT_FREQUENCY_HZ 1000U
 #define AD9910_SERVICE_DEFAULT_AMPLITUDE AD9910_MAX_AMPLITUDE
 #define AD9910_SERVICE_DEFAULT_PHASE_OFFSET 0U
+#define AD9910_SERVICE_U32_BYTE3(value) ((uint8_t)(((uint32_t)(value)) >> 24))
+#define AD9910_SERVICE_U32_BYTE2(value) ((uint8_t)(((uint32_t)(value)) >> 16))
+#define AD9910_SERVICE_U32_BYTE1(value) ((uint8_t)(((uint32_t)(value)) >> 8))
+#define AD9910_SERVICE_U32_BYTE0(value) ((uint8_t)((uint32_t)(value)))
 
-/* PC6/PC7/PC8 是本板 AD9910 数字斜坡控制专用引脚。 */
-#define AD9910_SERVICE_DRCTL_GPIO_PORT GPIOC
-#define AD9910_SERVICE_DRCTL_GPIO_PIN GPIO_PIN_6
-#define AD9910_SERVICE_DRHOLD_GPIO_PORT GPIOC
-#define AD9910_SERVICE_DRHOLD_GPIO_PIN GPIO_PIN_7
-#define AD9910_SERVICE_DROVER_GPIO_PORT GPIOC
-#define AD9910_SERVICE_DROVER_GPIO_PIN GPIO_PIN_8
-#define AD9910_SERVICE_DROVER_EXTI_IRQn EXTI9_5_IRQn
+#define AD9910_SERVICE_CFR2_PROFILE_ASF_ENABLE (1UL << 24)
+#define AD9910_SERVICE_CFR2_SYNC_CLK_ENABLE (1UL << 22)
+#define AD9910_SERVICE_CFR2_DRG_ENABLE (1UL << 19)
+#define AD9910_SERVICE_CFR2_PDCLK_ENABLE (1UL << 11)
+#define AD9910_SERVICE_CFR2_SYNC_VALIDATION_DISABLE (1UL << 5)
+
+#define AD9910_SERVICE_CFR2_FIXED_VALUE \
+    (AD9910_SERVICE_CFR2_PROFILE_ASF_ENABLE | \
+     AD9910_SERVICE_CFR2_SYNC_CLK_ENABLE | \
+     AD9910_SERVICE_CFR2_PDCLK_ENABLE | \
+     AD9910_SERVICE_CFR2_SYNC_VALIDATION_DISABLE)
+#define AD9910_SERVICE_CFR2_RAM_VALUE \
+    (AD9910_SERVICE_CFR2_FIXED_VALUE & \
+     (~AD9910_SERVICE_CFR2_PROFILE_ASF_ENABLE))
+#define AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE \
+    (AD9910_SERVICE_CFR2_FIXED_VALUE | AD9910_SERVICE_CFR2_DRG_ENABLE)
+
+/* 数字斜坡控制引脚跟随 CubeMX 生成的 AD9910_* 宏。 */
+#define AD9910_SERVICE_DRCTL_GPIO_PORT AD9910_DRCTL_GPIO_Port
+#define AD9910_SERVICE_DRCTL_GPIO_PIN AD9910_DRCTL_Pin
+#define AD9910_SERVICE_DRHOLD_GPIO_PORT AD9910_DRHOLD_GPIO_Port
+#define AD9910_SERVICE_DRHOLD_GPIO_PIN AD9910_DRHOLD_Pin
+#define AD9910_SERVICE_DROVER_GPIO_PORT AD9910_DROVER_GPIO_Port
+#define AD9910_SERVICE_DROVER_GPIO_PIN AD9910_DROVER_Pin
+#define AD9910_SERVICE_DROVER_EXTI_IRQn EXTI15_10_IRQn
 
 /* 以下 CFR 值来自 KV-AD9910 配套示例：40 MHz 参考输入，PLL 倍频到 1 GHz。 */
 static const uint8_t g_ad9910_cfr1[AD9910_CFR_DATA_LENGTH] = {
     0x00U, 0x40U, 0x00U, 0x00U
 };
+/* 固定/Profile/RAM 模式保留模块参考位，只关闭 DRG。 */
 static const uint8_t g_ad9910_fixed_cfr2[AD9910_CFR_DATA_LENGTH] = {
-    0x01U, 0x00U, 0x00U, 0x00U
+    AD9910_SERVICE_U32_BYTE3(AD9910_SERVICE_CFR2_FIXED_VALUE),
+    AD9910_SERVICE_U32_BYTE2(AD9910_SERVICE_CFR2_FIXED_VALUE),
+    AD9910_SERVICE_U32_BYTE1(AD9910_SERVICE_CFR2_FIXED_VALUE),
+    AD9910_SERVICE_U32_BYTE0(AD9910_SERVICE_CFR2_FIXED_VALUE)
+};
+static const uint8_t g_ad9910_ram_cfr2[AD9910_CFR_DATA_LENGTH] = {
+    AD9910_SERVICE_U32_BYTE3(AD9910_SERVICE_CFR2_RAM_VALUE),
+    AD9910_SERVICE_U32_BYTE2(AD9910_SERVICE_CFR2_RAM_VALUE),
+    AD9910_SERVICE_U32_BYTE1(AD9910_SERVICE_CFR2_RAM_VALUE),
+    AD9910_SERVICE_U32_BYTE0(AD9910_SERVICE_CFR2_RAM_VALUE)
 };
 /* 使能频率 DRG；关闭自动换向，由 DRCTL 控制上、下扫。 */
 static const uint8_t g_ad9910_manual_sweep_cfr2[AD9910_CFR_DATA_LENGTH] = {
-    0x01U, 0x48U, 0x08U, 0x20U
+    AD9910_SERVICE_U32_BYTE3(AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE),
+    AD9910_SERVICE_U32_BYTE2(AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE),
+    AD9910_SERVICE_U32_BYTE1(AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE),
+    AD9910_SERVICE_U32_BYTE0(AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE)
 };
 static const uint8_t g_ad9910_cfr3[AD9910_CFR_DATA_LENGTH] = {
     0x05U, 0x0FU, 0x41U, 0x32U
@@ -49,6 +83,7 @@ typedef struct {
     uint8_t base_ftw[AD9910_FTW_DATA_LENGTH];
     uint8_t base_pow[AD9910_POW_DATA_LENGTH];
     uint8_t base_asf[AD9910_ASF_DATA_LENGTH];
+    uint8_t ram_prepare_cfr1[AD9910_CFR_DATA_LENGTH];
     uint8_t ram_cfr1[AD9910_CFR_DATA_LENGTH];
     uint8_t ram_data[AD9910_RAM_DATA_LENGTH];
     uint16_t ram_data_length;
@@ -84,22 +119,28 @@ static void ad9910_service_init_ramp_gpio(void)
 {
     GPIO_InitTypeDef gpio_init = {0};
 
-    /* RST 已在模块侧接地，释放旧 CubeMX 生成代码暂时占用的 PE5。 */
-    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_5);
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
+    /* DRC/DPH/DRO 按当前硬件映射初始化。 */
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
 
     HAL_GPIO_WritePin(AD9910_SERVICE_DRCTL_GPIO_PORT,
-                      AD9910_SERVICE_DRCTL_GPIO_PIN |
-                          AD9910_SERVICE_DRHOLD_GPIO_PIN,
+                      AD9910_SERVICE_DRCTL_GPIO_PIN,
+                      GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AD9910_SERVICE_DRHOLD_GPIO_PORT,
+                      AD9910_SERVICE_DRHOLD_GPIO_PIN,
                       GPIO_PIN_RESET);
 
-    gpio_init.Pin = AD9910_SERVICE_DRCTL_GPIO_PIN |
-                    AD9910_SERVICE_DRHOLD_GPIO_PIN;
+    gpio_init.Pin = AD9910_SERVICE_DRCTL_GPIO_PIN;
     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
     gpio_init.Pull = GPIO_NOPULL;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
+    HAL_GPIO_Init(AD9910_SERVICE_DRCTL_GPIO_PORT, &gpio_init);
+
+    gpio_init.Pin = AD9910_SERVICE_DRHOLD_GPIO_PIN;
+    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(AD9910_SERVICE_DRHOLD_GPIO_PORT, &gpio_init);
 
     gpio_init.Pin = AD9910_SERVICE_DROVER_GPIO_PIN;
     gpio_init.Mode = GPIO_MODE_IT_RISING;
@@ -145,25 +186,18 @@ static void ad9910_service_build_profile(const ad9910_tone_config_t *config) {
 
 static void ad9910_service_select_profile_gpio(uint8_t profile_index)
 {
-    uint16_t set_pins = 0U;
-    const uint16_t profile_pins = AD9910_PROFILE0_Pin |
-                                  AD9910_PROFILE1_Pin |
-                                  AD9910_PROFILE2_Pin;
-
-    if ((profile_index & 0x01U) != 0U) {
-        set_pins |= AD9910_PROFILE0_Pin;
-    }
-    if ((profile_index & 0x02U) != 0U) {
-        set_pins |= AD9910_PROFILE1_Pin;
-    }
-    if ((profile_index & 0x04U) != 0U) {
-        set_pins |= AD9910_PROFILE2_Pin;
-    }
-
-    HAL_GPIO_WritePin(AD9910_PROFILE0_GPIO_Port, profile_pins, GPIO_PIN_RESET);
-    if (set_pins != 0U) {
-        HAL_GPIO_WritePin(AD9910_PROFILE0_GPIO_Port, set_pins, GPIO_PIN_SET);
-    }
+    HAL_GPIO_WritePin(AD9910_PROFILE0_GPIO_Port,
+                      AD9910_PROFILE0_Pin,
+                      ((profile_index & 0x01U) != 0U) ?
+                          GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AD9910_PROFILE1_GPIO_Port,
+                      AD9910_PROFILE1_Pin,
+                      ((profile_index & 0x02U) != 0U) ?
+                          GPIO_PIN_SET : GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AD9910_PROFILE2_GPIO_Port,
+                      AD9910_PROFILE2_Pin,
+                      ((profile_index & 0x04U) != 0U) ?
+                          GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
 static void ad9910_service_update_selected_profile_status(void)
@@ -263,6 +297,10 @@ static void ad9910_service_build_ram_registers(
                            config->mode,
                            config->no_dwell_high,
                            config->zero_crossing);
+    AD9910_BuildCFR1RamConfig(g_ad9910_service.ram_prepare_cfr1,
+                              g_ad9910_cfr1,
+                              config->destination,
+                              0U);
     AD9910_BuildCFR1RamPlayback(g_ad9910_service.ram_cfr1,
                                 g_ad9910_cfr1,
                                 config->destination);
@@ -563,7 +601,7 @@ void AD9910_Service_Process(void)
 
     case AD9910_SERVICE_STATE_WRITE_RAM_DISABLE_CFR1:
         status = ad9910_service_write_register(AD9910_REGISTER_CFR1,
-                                                g_ad9910_cfr1,
+                                                g_ad9910_service.ram_prepare_cfr1,
                                                 AD9910_CFR_DATA_LENGTH);
         if (status == HAL_OK) {
             g_ad9910_service.state = AD9910_SERVICE_STATE_WAIT_RAM_DISABLE_CFR1;
@@ -582,7 +620,22 @@ void AD9910_Service_Process(void)
             break;
         }
         g_ad9910_service.ram_active = 0U;
-        g_ad9910_service.state = AD9910_SERVICE_STATE_WRITE_RAM_BASE_FTW;
+        g_ad9910_service.state = AD9910_SERVICE_STATE_WRITE_RAM_CFR2;
+        break;
+
+    case AD9910_SERVICE_STATE_WRITE_RAM_CFR2:
+        status = ad9910_service_write_register(AD9910_REGISTER_CFR2,
+                                                g_ad9910_ram_cfr2,
+                                                AD9910_CFR_DATA_LENGTH);
+        if (status == HAL_OK) {
+            g_ad9910_service.state = AD9910_SERVICE_STATE_WAIT_RAM_CFR2;
+        }
+        break;
+
+    case AD9910_SERVICE_STATE_WAIT_RAM_CFR2:
+        if (event == AD9910_TRANSFER_EVENT_COMPLETE) {
+            g_ad9910_service.state = AD9910_SERVICE_STATE_WRITE_RAM_BASE_FTW;
+        }
         break;
 
     case AD9910_SERVICE_STATE_WRITE_RAM_BASE_FTW:
