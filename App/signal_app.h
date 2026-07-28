@@ -3,35 +3,43 @@
 
 #include <stdint.h>
 
+#include "ad9910_signal_generator_app.h"
+#include "signal_acquisition_service.h"
 #include "stm32g4xx_hal.h"
+
+#ifndef SIGNAL_APP_ENABLE_AD9910_AUTO_TEST
+#define SIGNAL_APP_ENABLE_AD9910_AUTO_TEST 1U
+#endif
+
+typedef enum {
+    SIGNAL_APP_ERROR_NONE = 0,
+    SIGNAL_APP_ERROR_INVALID_CONFIG,
+    SIGNAL_APP_ERROR_AD9910_INIT,
+    SIGNAL_APP_ERROR_ACQUISITION_INIT,
+    SIGNAL_APP_ERROR_AD9910_RUNTIME,
+    SIGNAL_APP_ERROR_ACQUISITION_RUNTIME,
+    SIGNAL_APP_ERROR_AUTO_TEST
+} signal_app_error_t;
+
+typedef struct {
+    SPI_HandleTypeDef *ad9910_spi;
+    SPI_HandleTypeDef *adc_spi;
+    TIM_HandleTypeDef *adc_timer;
+    DAC_HandleTypeDef *dac;
+    TIM_HandleTypeDef *dac_timer;
+} signal_app_config_t;
 
 typedef struct {
     uint8_t initialized;
-    uint8_t adc_running;
-    uint32_t adc_block_count;
-    uint16_t adc_last_min;
-    uint16_t adc_last_max;
-    uint16_t adc_last_average;
-    uint32_t adc_half_complete_count;
-    uint32_t adc_complete_count;
-    uint32_t adc_error_count;
-    uint32_t adc_overrun_count;
-    uint32_t dac_half_complete_count;
-    uint32_t dac_complete_count;
-    uint32_t dac_error_count;
-    uint32_t dac_underrun_count;
-    uint8_t dac_loopback_running;
-    uint32_t dac_loopback_dropped_block_count;
-    uint32_t dac_loopback_error_count;
+    signal_app_error_t error;
+    HAL_StatusTypeDef last_hal_status;
+    uint32_t process_count;
+    ad9910_siggen_status_t signal_generator;
+    signal_acquisition_status_t acquisition;
 } signal_app_status_t;
 
-extern signal_app_status_t g_signal_app_status;
-
-HAL_StatusTypeDef Signal_App_Init(SPI_HandleTypeDef *ad9910_spi,
-                                  SPI_HandleTypeDef *adc_spi,
-                                  TIM_HandleTypeDef *adc_timer,
-                                  DAC_HandleTypeDef *dac,
-                                  TIM_HandleTypeDef *dac_timer);
+HAL_StatusTypeDef Signal_App_Init(const signal_app_config_t *config);
 void Signal_App_Process(void);
+const signal_app_status_t *Signal_App_GetStatus(void);
 
 #endif

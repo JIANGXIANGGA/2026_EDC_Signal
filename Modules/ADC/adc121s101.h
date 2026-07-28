@@ -6,7 +6,7 @@
 #include "stm32g4xx_hal.h"
 
 #define ADC_INPUT_HALF_SIZE 2U
-#define ADC_INPUT_BLOCK_SIZE 1024U
+#define ADC_INPUT_BLOCK_SIZE 4096U
 #define ADC_INPUT_SAMPLE_SIZE \
     (ADC_INPUT_HALF_SIZE * ADC_INPUT_BLOCK_SIZE)
 
@@ -28,7 +28,7 @@ HAL_StatusTypeDef ADC_Start(void);
 HAL_StatusTypeDef ADC_Process(void);
 
 /**
- * @brief 将最新完整的 1024 点采样块复制到调用方缓冲区。
+ * @brief 将最新完整的 4096 点采样块复制到调用方缓冲区。
  * @retval 1 获得新块；0 当前无新块、容量不足或复制期间目标块已变化。
  * @note 复制时完成 sample = rx & 0x0FFFU。
  */

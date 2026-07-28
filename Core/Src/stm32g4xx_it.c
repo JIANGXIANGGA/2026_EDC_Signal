@@ -275,6 +275,20 @@ void DMA1_Channel5_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(AD9910_DROVER_Pin);
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
+/**
   * @brief This function handles SPI2 global interrupt.
   */
 void SPI2_IRQHandler(void)
@@ -319,17 +333,9 @@ void SPI4_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
-/**
-  * @brief AD9910 数字斜坡达到上、下限的通知中断。
-  */
-void EXTI9_5_IRQHandler(void)
-{
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8);
-}
-
 void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin)
 {
-  if (gpio_pin == GPIO_PIN_8)
+  if (gpio_pin == AD9910_DROVER_Pin)
   {
     AD9910_Service_OnRampLimitEvent();
   }
