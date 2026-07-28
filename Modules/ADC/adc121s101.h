@@ -28,7 +28,7 @@ HAL_StatusTypeDef ADC_Start(void);
 HAL_StatusTypeDef ADC_Process(void);
 
 /**
- * @brief 将最新完整的 1024 点采样块复制到调用方缓冲区。
+ * @brief 将最新完整的 4096 点采样块复制到调用方缓冲区。
  * @retval 1 获得新块；0 当前无新块、容量不足或复制期间目标块已变化。
  * @note 复制时完成 sample = rx & 0x0FFFU。
  */

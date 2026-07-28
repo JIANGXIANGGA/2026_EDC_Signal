@@ -5,6 +5,30 @@
 
 #include "ad9910_service.h"
 
+/* 可由 CMake 选项覆盖，非 CMake 构建默认同时启用两种输出模式。 */
+#ifndef AD9910_SIGGEN_ENABLE_SINGLE_TONE
+#define AD9910_SIGGEN_ENABLE_SINGLE_TONE 1U
+#endif
+
+#ifndef AD9910_SIGGEN_ENABLE_RAM_PLAYBACK
+#define AD9910_SIGGEN_ENABLE_RAM_PLAYBACK 1U
+#endif
+
+#if ((AD9910_SIGGEN_ENABLE_SINGLE_TONE != 0U) && \
+     (AD9910_SIGGEN_ENABLE_SINGLE_TONE != 1U))
+#error "AD9910_SIGGEN_ENABLE_SINGLE_TONE must be 0 or 1"
+#endif
+
+#if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK != 0U) && \
+     (AD9910_SIGGEN_ENABLE_RAM_PLAYBACK != 1U))
+#error "AD9910_SIGGEN_ENABLE_RAM_PLAYBACK must be 0 or 1"
+#endif
+
+#if ((AD9910_SIGGEN_ENABLE_SINGLE_TONE == 0U) && \
+     (AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U))
+#error "At least one AD9910 signal-generator mode must be enabled"
+#endif
+
 #define AD9910_SIGGEN_RAM_PRESET_COUNT AD9910_PROFILE_COUNT
 #define AD9910_SIGGEN_RAM_SAMPLE_COUNT 64U
 #define AD9910_SIGGEN_SINGLE_TONE_PROFILE_INDEX 0U
@@ -90,6 +114,7 @@ typedef struct {
     ad9910_siggen_mode_t requested_mode;
     ad9910_siggen_waveform_t active_ram_waveform;
     uint8_t active_ram_preset;
+    uint8_t requested_ram_preset;
     uint8_t ram_active;
     uint8_t pending_apply;
     uint8_t pending_single_tone_update;
@@ -100,8 +125,6 @@ typedef struct {
     uint16_t ram_sample_count;
     uint32_t last_hal_error;
 } ad9910_siggen_status_t;
-
-extern ad9910_siggen_status_t g_ad9910_siggen_status;
 
 HAL_StatusTypeDef AD9910_SignalGenerator_App_Init(SPI_HandleTypeDef *spi);
 void AD9910_SignalGenerator_App_Process(void);

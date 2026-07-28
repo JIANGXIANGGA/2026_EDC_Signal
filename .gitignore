@@ -35,10 +35,6 @@ compile_commands.json
 !.settings/
 !.vscode/
 
-# LVGL 仓库中与固件编译无关的资料，保留 lvgl/src 与配置文件
-lvgl/
-*.html
-
 # CMSIS 示例、测试与预编译库，当前工程使用源码编译 FFT 子集
 Drivers/CMSIS/DSP/Examples/
 Drivers/CMSIS/DSP/DSP_Lib_TestSuite/

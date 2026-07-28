@@ -47,8 +47,6 @@ typedef struct {
     float peak_amplitudes_code[WAVEFORM_ANALYZER_PEAK_COUNT];
 } waveform_analyzer_result_t;
 
-extern waveform_analyzer_result_t g_waveform_analyzer_result;
-
 HAL_StatusTypeDef Waveform_Analyzer_Init(uint32_t sample_rate_hz);
 HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
                                                  uint32_t length);

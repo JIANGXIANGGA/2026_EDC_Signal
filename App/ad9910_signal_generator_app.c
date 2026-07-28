@@ -14,8 +14,12 @@
 typedef struct {
     /* 单音模式只维护一组实时参数，不做 8 组上电预编程。 */
     ad9910_siggen_tone_param_t single_tone;
+    ad9910_siggen_tone_param_t active_single_tone;
+    ad9910_siggen_tone_param_t service_cycle_single_tone;
     /* RAM 模式面向 TJC 页面保留 8 个可编辑波形预设槽。 */
     ad9910_siggen_ram_preset_t ram_presets[AD9910_SIGGEN_RAM_PRESET_COUNT];
+    ad9910_siggen_ram_preset_t active_ram_preset_config;
+    ad9910_siggen_ram_preset_t service_cycle_ram_preset_config;
     uint32_t ram_words[AD9910_SIGGEN_RAM_SAMPLE_COUNT];
     ad9910_ram_playback_config_t ram_config;
     ad9910_siggen_state_t state;
@@ -23,15 +27,22 @@ typedef struct {
     ad9910_siggen_mode_t active_mode;
     ad9910_siggen_mode_t requested_mode;
     uint8_t active_ram_preset;
+    uint8_t requested_ram_preset;
+    uint8_t service_cycle_ram_preset;
     uint8_t pending_apply;
     uint8_t pending_single_tone_update;
     uint8_t service_cycle_started;
     uint32_t ram_playback_sample_rate_hz;
+    uint32_t active_ram_playback_sample_rate_hz;
+    uint32_t service_cycle_ram_playback_sample_rate_hz;
+    uint32_t apply_generation;
+    uint32_t service_cycle_apply_generation;
+    uint32_t single_tone_generation;
+    uint32_t service_cycle_single_tone_generation;
 } ad9910_siggen_context_t;
 
-ad9910_siggen_status_t g_ad9910_siggen_status;
-
 static ad9910_siggen_context_t g_ad9910_siggen;
+static ad9910_siggen_status_t g_ad9910_siggen_status;
 
 static const int16_t g_ad9910_siggen_sine64[AD9910_SIGGEN_RAM_SAMPLE_COUNT] = {
     0, 1606, 3196, 4756, 6270, 7723, 9102, 10394,
@@ -51,7 +62,16 @@ static uint8_t ad9910_siggen_ram_preset_index_is_valid(uint8_t preset_index)
 
 static uint8_t ad9910_siggen_mode_is_valid(ad9910_siggen_mode_t mode)
 {
-    return (mode <= AD9910_SIGGEN_MODE_RAM_WAVEFORM) ? 1U : 0U;
+    switch (mode) {
+    case AD9910_SIGGEN_MODE_SINGLE_TONE:
+        return (AD9910_SIGGEN_ENABLE_SINGLE_TONE != 0U) ? 1U : 0U;
+
+    case AD9910_SIGGEN_MODE_RAM_WAVEFORM:
+        return (AD9910_SIGGEN_ENABLE_RAM_PLAYBACK != 0U) ? 1U : 0U;
+
+    default:
+        return 0U;
+    }
 }
 
 static uint8_t ad9910_siggen_waveform_is_valid(ad9910_siggen_waveform_t waveform)
@@ -84,7 +104,15 @@ static void ad9910_siggen_set_error(ad9910_siggen_error_t error)
 
 static void ad9910_siggen_request_apply(void)
 {
+    g_ad9910_siggen.apply_generation++;
     g_ad9910_siggen.pending_apply = 1U;
+}
+
+static void ad9910_siggen_complete_apply_request(void)
+{
+    g_ad9910_siggen.pending_apply =
+        (g_ad9910_siggen.service_cycle_apply_generation ==
+         g_ad9910_siggen.apply_generation) ? 0U : 1U;
 }
 
 static uint8_t ad9910_siggen_service_cycle_completed(void)
@@ -100,6 +128,12 @@ static uint8_t ad9910_siggen_service_cycle_completed(void)
 static void ad9910_siggen_begin_service_cycle(ad9910_siggen_state_t wait_state)
 {
     g_ad9910_siggen.service_cycle_started = 0U;
+    g_ad9910_siggen.service_cycle_apply_generation =
+        g_ad9910_siggen.apply_generation;
+    g_ad9910_siggen.service_cycle_single_tone_generation =
+        g_ad9910_siggen.single_tone_generation;
+    g_ad9910_siggen.service_cycle_ram_preset =
+        g_ad9910_siggen.requested_ram_preset;
     g_ad9910_siggen.state = wait_state;
 }
 
@@ -237,7 +271,7 @@ static int32_t ad9910_siggen_build_wave_sample(
 static HAL_StatusTypeDef ad9910_siggen_build_ram_config(void)
 {
     const ad9910_siggen_ram_preset_t *preset =
-        &g_ad9910_siggen.ram_presets[g_ad9910_siggen.active_ram_preset];
+        &g_ad9910_siggen.ram_presets[g_ad9910_siggen.requested_ram_preset];
     const uint32_t playback_sample_rate_hz =
         preset->tone.frequency_hz * AD9910_SIGGEN_RAM_SAMPLE_COUNT;
 
@@ -277,19 +311,17 @@ static HAL_StatusTypeDef ad9910_siggen_build_ram_config(void)
 
 static const ad9910_siggen_tone_param_t *ad9910_siggen_get_status_tone(void)
 {
-    if (g_ad9910_siggen.requested_mode == AD9910_SIGGEN_MODE_RAM_WAVEFORM) {
-        return &g_ad9910_siggen
-                    .ram_presets[g_ad9910_siggen.active_ram_preset]
-                    .tone;
+    if (g_ad9910_siggen.active_mode == AD9910_SIGGEN_MODE_RAM_WAVEFORM) {
+        return &g_ad9910_siggen.active_ram_preset_config.tone;
     }
 
-    return &g_ad9910_siggen.single_tone;
+    return &g_ad9910_siggen.active_single_tone;
 }
 
 static void ad9910_siggen_update_status(void)
 {
     const ad9910_siggen_ram_preset_t *preset =
-        &g_ad9910_siggen.ram_presets[g_ad9910_siggen.active_ram_preset];
+        &g_ad9910_siggen.active_ram_preset_config;
     const ad9910_siggen_tone_param_t *tone =
         ad9910_siggen_get_status_tone();
 
@@ -301,6 +333,8 @@ static void ad9910_siggen_update_status(void)
     g_ad9910_siggen_status.active_ram_waveform = preset->waveform;
     g_ad9910_siggen_status.active_ram_preset =
         g_ad9910_siggen.active_ram_preset;
+    g_ad9910_siggen_status.requested_ram_preset =
+        g_ad9910_siggen.requested_ram_preset;
     g_ad9910_siggen_status.ram_active = AD9910_Service_IsRamPlaybackActive();
     g_ad9910_siggen_status.pending_apply = g_ad9910_siggen.pending_apply;
     g_ad9910_siggen_status.pending_single_tone_update =
@@ -309,7 +343,7 @@ static void ad9910_siggen_update_status(void)
     g_ad9910_siggen_status.amplitude_percent = tone->amplitude_percent;
     g_ad9910_siggen_status.phase_degrees = tone->phase_degrees;
     g_ad9910_siggen_status.ram_playback_sample_rate_hz =
-        g_ad9910_siggen.ram_playback_sample_rate_hz;
+        g_ad9910_siggen.active_ram_playback_sample_rate_hz;
     g_ad9910_siggen_status.ram_sample_count =
         AD9910_Service_GetRamSampleCount();
     g_ad9910_siggen_status.last_hal_error = AD9910_Service_GetLastHalError();
@@ -350,6 +384,13 @@ static void ad9910_siggen_init_ram_presets(void)
 
 HAL_StatusTypeDef AD9910_SignalGenerator_App_Init(SPI_HandleTypeDef *spi)
 {
+#if AD9910_SIGGEN_ENABLE_SINGLE_TONE
+    const ad9910_siggen_mode_t boot_mode =
+        AD9910_SIGGEN_MODE_SINGLE_TONE;
+#else
+    const ad9910_siggen_mode_t boot_mode =
+        AD9910_SIGGEN_MODE_RAM_WAVEFORM;
+#endif
     HAL_StatusTypeDef status;
 
     g_ad9910_siggen.single_tone.frequency_hz =
@@ -359,16 +400,32 @@ HAL_StatusTypeDef AD9910_SignalGenerator_App_Init(SPI_HandleTypeDef *spi)
     g_ad9910_siggen.single_tone.phase_degrees =
         AD9910_SIGGEN_DEFAULT_PHASE_DEGREES;
     ad9910_siggen_init_ram_presets();
+    g_ad9910_siggen.active_single_tone = g_ad9910_siggen.single_tone;
+    g_ad9910_siggen.service_cycle_single_tone =
+        g_ad9910_siggen.single_tone;
+    g_ad9910_siggen.active_ram_preset_config =
+        g_ad9910_siggen.ram_presets[0U];
+    g_ad9910_siggen.service_cycle_ram_preset_config =
+        g_ad9910_siggen.ram_presets[0U];
 
     g_ad9910_siggen.state = AD9910_SIGGEN_STATE_WAIT_SERVICE;
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
-    g_ad9910_siggen.active_mode = AD9910_SIGGEN_MODE_SINGLE_TONE;
-    g_ad9910_siggen.requested_mode = AD9910_SIGGEN_MODE_SINGLE_TONE;
+    g_ad9910_siggen.active_mode = boot_mode;
+    g_ad9910_siggen.requested_mode = boot_mode;
     g_ad9910_siggen.active_ram_preset = 0U;
+    g_ad9910_siggen.requested_ram_preset = 0U;
+    g_ad9910_siggen.service_cycle_ram_preset = 0U;
     g_ad9910_siggen.pending_apply = 1U;
-    g_ad9910_siggen.pending_single_tone_update = 1U;
+    g_ad9910_siggen.pending_single_tone_update =
+        (boot_mode == AD9910_SIGGEN_MODE_SINGLE_TONE) ? 1U : 0U;
     g_ad9910_siggen.service_cycle_started = 0U;
     g_ad9910_siggen.ram_playback_sample_rate_hz = 0U;
+    g_ad9910_siggen.active_ram_playback_sample_rate_hz = 0U;
+    g_ad9910_siggen.service_cycle_ram_playback_sample_rate_hz = 0U;
+    g_ad9910_siggen.apply_generation = 1U;
+    g_ad9910_siggen.service_cycle_apply_generation = 0U;
+    g_ad9910_siggen.single_tone_generation = 1U;
+    g_ad9910_siggen.service_cycle_single_tone_generation = 0U;
 
     status = AD9910_Service_Init(spi);
     if (status != HAL_OK) {
@@ -421,6 +478,8 @@ void AD9910_SignalGenerator_App_Process(void)
             const ad9910_tone_config_t tone =
                 ad9910_siggen_build_tone_config(
                     &g_ad9910_siggen.single_tone);
+            g_ad9910_siggen.service_cycle_single_tone =
+                g_ad9910_siggen.single_tone;
             status = AD9910_Service_SetTone(&tone);
             if (status == HAL_OK) {
                 ad9910_siggen_begin_service_cycle(
@@ -444,6 +503,11 @@ void AD9910_SignalGenerator_App_Process(void)
             status = AD9910_Service_StartRamPlayback(
                 &g_ad9910_siggen.ram_config);
             if (status == HAL_OK) {
+                g_ad9910_siggen.service_cycle_ram_preset_config =
+                    g_ad9910_siggen.ram_presets[
+                        g_ad9910_siggen.requested_ram_preset];
+                g_ad9910_siggen.service_cycle_ram_playback_sample_rate_hz =
+                    g_ad9910_siggen.ram_playback_sample_rate_hz;
                 ad9910_siggen_begin_service_cycle(
                     AD9910_SIGGEN_STATE_WAIT_RAM_START);
             } else if (status != HAL_BUSY) {
@@ -455,8 +519,13 @@ void AD9910_SignalGenerator_App_Process(void)
     case AD9910_SIGGEN_STATE_WAIT_SINGLE_TONE:
         if (ad9910_siggen_service_cycle_completed() != 0U) {
             g_ad9910_siggen.active_mode = AD9910_SIGGEN_MODE_SINGLE_TONE;
-            g_ad9910_siggen.pending_single_tone_update = 0U;
-            g_ad9910_siggen.pending_apply = 0U;
+            g_ad9910_siggen.active_single_tone =
+                g_ad9910_siggen.service_cycle_single_tone;
+            if (g_ad9910_siggen.service_cycle_single_tone_generation ==
+                g_ad9910_siggen.single_tone_generation) {
+                g_ad9910_siggen.pending_single_tone_update = 0U;
+            }
+            ad9910_siggen_complete_apply_request();
             g_ad9910_siggen.state = AD9910_SIGGEN_STATE_READY;
         }
         break;
@@ -465,7 +534,13 @@ void AD9910_SignalGenerator_App_Process(void)
         if ((ad9910_siggen_service_cycle_completed() != 0U) &&
             (AD9910_Service_IsRamPlaybackActive() != 0U)) {
             g_ad9910_siggen.active_mode = AD9910_SIGGEN_MODE_RAM_WAVEFORM;
-            g_ad9910_siggen.pending_apply = 0U;
+            g_ad9910_siggen.active_ram_preset =
+                g_ad9910_siggen.service_cycle_ram_preset;
+            g_ad9910_siggen.active_ram_preset_config =
+                g_ad9910_siggen.service_cycle_ram_preset_config;
+            g_ad9910_siggen.active_ram_playback_sample_rate_hz =
+                g_ad9910_siggen.service_cycle_ram_playback_sample_rate_hz;
+            ad9910_siggen_complete_apply_request();
             g_ad9910_siggen.state = AD9910_SIGGEN_STATE_READY;
         }
         break;
@@ -502,14 +577,16 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetMode(ad9910_siggen_mode_t mode)
 HAL_StatusTypeDef AD9910_SignalGenerator_SetSingleTone(
     const ad9910_siggen_tone_param_t *tone)
 {
-    if (ad9910_siggen_tone_is_valid(tone) == 0U) {
+    if ((AD9910_SIGGEN_ENABLE_SINGLE_TONE == 0U) ||
+        (ad9910_siggen_tone_is_valid(tone) == 0U)) {
         return HAL_ERROR;
     }
 
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
     g_ad9910_siggen.single_tone = *tone;
+    g_ad9910_siggen.single_tone_generation++;
+    g_ad9910_siggen.pending_single_tone_update = 1U;
     if (g_ad9910_siggen.requested_mode == AD9910_SIGGEN_MODE_SINGLE_TONE) {
-        g_ad9910_siggen.pending_single_tone_update = 1U;
         ad9910_siggen_request_apply();
     }
 
@@ -518,12 +595,13 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetSingleTone(
 
 HAL_StatusTypeDef AD9910_SignalGenerator_SelectRamPreset(uint8_t preset_index)
 {
-    if (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) {
+    if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U) ||
+        (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U)) {
         return HAL_ERROR;
     }
 
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
-    g_ad9910_siggen.active_ram_preset = preset_index;
+    g_ad9910_siggen.requested_ram_preset = preset_index;
     if (g_ad9910_siggen.requested_mode == AD9910_SIGGEN_MODE_RAM_WAVEFORM) {
         ad9910_siggen_request_apply();
     }
@@ -535,14 +613,15 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetTone(
     uint8_t preset_index,
     const ad9910_siggen_tone_param_t *tone)
 {
-    if ((ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
+    if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U) ||
+        (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
         (ad9910_siggen_ram_tone_is_valid(tone) == 0U)) {
         return HAL_ERROR;
     }
 
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
     g_ad9910_siggen.ram_presets[preset_index].tone = *tone;
-    if ((preset_index == g_ad9910_siggen.active_ram_preset) &&
+    if ((preset_index == g_ad9910_siggen.requested_ram_preset) &&
         (g_ad9910_siggen.requested_mode ==
          AD9910_SIGGEN_MODE_RAM_WAVEFORM)) {
         ad9910_siggen_request_apply();
@@ -555,14 +634,15 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetWaveform(
     uint8_t preset_index,
     ad9910_siggen_waveform_t waveform)
 {
-    if ((ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
+    if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U) ||
+        (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
         (ad9910_siggen_waveform_is_valid(waveform) == 0U)) {
         return HAL_ERROR;
     }
 
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
     g_ad9910_siggen.ram_presets[preset_index].waveform = waveform;
-    if ((preset_index == g_ad9910_siggen.active_ram_preset) &&
+    if ((preset_index == g_ad9910_siggen.requested_ram_preset) &&
         (g_ad9910_siggen.requested_mode ==
          AD9910_SIGGEN_MODE_RAM_WAVEFORM)) {
         ad9910_siggen_request_apply();
@@ -575,7 +655,8 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetDuty(
     uint8_t preset_index,
     uint8_t duty_percent)
 {
-    if ((ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
+    if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U) ||
+        (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
         (duty_percent == 0U) ||
         (duty_percent > 100U)) {
         return HAL_ERROR;
@@ -583,7 +664,7 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetDuty(
 
     g_ad9910_siggen.error = AD9910_SIGGEN_ERROR_NONE;
     g_ad9910_siggen.ram_presets[preset_index].duty_percent = duty_percent;
-    if ((preset_index == g_ad9910_siggen.active_ram_preset) &&
+    if ((preset_index == g_ad9910_siggen.requested_ram_preset) &&
         (g_ad9910_siggen.requested_mode ==
          AD9910_SIGGEN_MODE_RAM_WAVEFORM)) {
         ad9910_siggen_request_apply();
@@ -597,7 +678,8 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetComposite(
     uint8_t harmonic2_percent,
     uint8_t harmonic3_percent)
 {
-    if ((ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
+    if ((AD9910_SIGGEN_ENABLE_RAM_PLAYBACK == 0U) ||
+        (ad9910_siggen_ram_preset_index_is_valid(preset_index) == 0U) ||
         (harmonic2_percent > 100U) ||
         (harmonic3_percent > 100U)) {
         return HAL_ERROR;
@@ -610,7 +692,7 @@ HAL_StatusTypeDef AD9910_SignalGenerator_SetRamPresetComposite(
         harmonic2_percent;
     g_ad9910_siggen.ram_presets[preset_index].harmonic3_percent =
         harmonic3_percent;
-    if ((preset_index == g_ad9910_siggen.active_ram_preset) &&
+    if ((preset_index == g_ad9910_siggen.requested_ram_preset) &&
         (g_ad9910_siggen.requested_mode ==
          AD9910_SIGGEN_MODE_RAM_WAVEFORM)) {
         ad9910_siggen_request_apply();

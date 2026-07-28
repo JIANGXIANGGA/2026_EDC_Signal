@@ -21,14 +21,13 @@ typedef struct {
     uint32_t sample_rate_hz;
 } waveform_analyzer_context_t;
 
-waveform_analyzer_result_t g_waveform_analyzer_result;
-
 static waveform_analyzer_context_t g_waveform_analyzer;
+static waveform_analyzer_result_t g_waveform_analyzer_result;
 static float g_waveform_analyzer_window[WAVEFORM_ANALYZER_FFT_SIZE];
-static float g_waveform_analyzer_magnitude[WAVEFORM_ANALYZER_BIN_COUNT];
 static float g_waveform_analyzer_fft_input[WAVEFORM_ANALYZER_FFT_SIZE]
     WAVEFORM_ANALYZER_CCMRAM;
-static float g_waveform_analyzer_fft_output[WAVEFORM_ANALYZER_FFT_SIZE];
+static float g_waveform_analyzer_fft_output[WAVEFORM_ANALYZER_FFT_SIZE]
+    WAVEFORM_ANALYZER_CCMRAM;
 
 static float waveform_analyzer_clamp_percent(float value)
 {
@@ -93,7 +92,7 @@ static float waveform_analyzer_get_bin_magnitude(uint16_t bin_index)
         return 0.0f;
     }
 
-    return g_waveform_analyzer_magnitude[bin_index];
+    return g_waveform_analyzer_fft_output[bin_index];
 }
 
 static float waveform_analyzer_get_near_harmonic_magnitude(uint16_t center_bin)
@@ -128,15 +127,16 @@ static float waveform_analyzer_get_near_harmonic_magnitude(uint16_t center_bin)
 
 static void waveform_analyzer_build_magnitude(void)
 {
-    g_waveform_analyzer_magnitude[0] = 0.0f;
+    g_waveform_analyzer_fft_output[0] = 0.0f;
 
+    /* 从低频到高频原地压缩，写入位置始终落后于尚未读取的复数数据。 */
     for (uint16_t bin = 1U; bin < WAVEFORM_ANALYZER_BIN_COUNT; ++bin) {
         const uint32_t offset = (uint32_t)bin * 2U;
         const float real = g_waveform_analyzer_fft_output[offset];
         const float imag = g_waveform_analyzer_fft_output[offset + 1U];
         const float raw_magnitude = sqrtf((real * real) + (imag * imag));
 
-        g_waveform_analyzer_magnitude[bin] =
+        g_waveform_analyzer_fft_output[bin] =
             (2.0f * raw_magnitude) /
             ((float)WAVEFORM_ANALYZER_FFT_SIZE *
              WAVEFORM_ANALYZER_HANN_COHERENT_GAIN);
@@ -420,7 +420,7 @@ const waveform_analyzer_result_t *Waveform_Analyzer_GetResult(void)
 
 const float *Waveform_Analyzer_GetMagnitudeBins(void)
 {
-    return g_waveform_analyzer_magnitude;
+    return g_waveform_analyzer_fft_output;
 }
 
 float Waveform_Analyzer_GetMagnitudeAtBin(uint16_t bin_index)

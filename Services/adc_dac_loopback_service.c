@@ -1,8 +1,12 @@
 #include "adc_dac_loopback_service.h"
 
+#include "adc121s101.h"
 #include "dac_output.h"
 
 #define ADC_DAC_LOOPBACK_DATA_MASK 0x0FFFU
+
+_Static_assert(DAC_OUTPUT_BLOCK_SIZE == ADC_INPUT_BLOCK_SIZE,
+               "ADC 与 DAC Ping-Pong 半区长度必须一致");
 
 static uint8_t g_adc_dac_loopback_started;
 static uint8_t g_adc_dac_loopback_primed_count;

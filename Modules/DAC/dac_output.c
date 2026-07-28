@@ -60,7 +60,7 @@ HAL_StatusTypeDef DAC_Output_Init(DAC_HandleTypeDef *hdac,
 HAL_StatusTypeDef DAC_Output_ConfigSampleRate(uint32_t sample_rate_hz)
 {
     const uint32_t timer_clock_hz = DAC_Output_GetTimerClockHz();
-    uint32_t timer_ticks;
+    uint64_t timer_ticks;
 
     if ((timer_clock_hz == 0U) || (sample_rate_hz == 0U)) {
         return HAL_ERROR;
@@ -70,7 +70,9 @@ HAL_StatusTypeDef DAC_Output_ConfigSampleRate(uint32_t sample_rate_hz)
         return HAL_BUSY;
     }
 
-    timer_ticks = (timer_clock_hz + (sample_rate_hz / 2U)) / sample_rate_hz;
+    timer_ticks = ((uint64_t)timer_clock_hz +
+                   ((uint64_t)sample_rate_hz / 2ULL)) /
+                  (uint64_t)sample_rate_hz;
     if ((timer_ticks == 0U) || (timer_ticks > 0x10000U)) {
         return HAL_ERROR;
     }
@@ -78,7 +80,7 @@ HAL_StatusTypeDef DAC_Output_ConfigSampleRate(uint32_t sample_rate_hz)
     /* DAC 回放节拍由 TIM6 控制，启动前对齐到目标采样率。 */
     __HAL_TIM_DISABLE(g_dac_output_dac_timer);
     g_dac_output_dac_timer->Init.Prescaler = 0U;
-    g_dac_output_dac_timer->Init.Period = timer_ticks - 1U;
+    g_dac_output_dac_timer->Init.Period = (uint32_t)(timer_ticks - 1ULL);
     __HAL_TIM_SET_PRESCALER(g_dac_output_dac_timer,
                             g_dac_output_dac_timer->Init.Prescaler);
     __HAL_TIM_SET_AUTORELOAD(g_dac_output_dac_timer,
@@ -92,18 +94,24 @@ HAL_StatusTypeDef DAC_Output_ConfigSampleRate(uint32_t sample_rate_hz)
 
 uint8_t DAC_Output_AcquireBuffer(uint16_t **buffer, uint8_t *index)
 {
+    uint32_t primask;
+
     if ((g_dac_output_hdac == NULL) || (buffer == NULL) ||
         (index == NULL)) {
         return 0U;
     }
 
     for (uint8_t current = 0U; current < DAC_OUTPUT_HALF_SIZE; ++current) {
+        primask = __get_PRIMASK();
+        __disable_irq();
         if (g_dac_output_half_status[current] == DAC_OUTPUT_HALF_FREE) {
             g_dac_output_half_status[current] = DAC_OUTPUT_HALF_FILLING;
             *buffer = &g_dac_output_buffer[current][0];
             *index = current;
+            __set_PRIMASK(primask);
             return 1U;
         }
+        __set_PRIMASK(primask);
     }
 
     return 0U;
@@ -111,12 +119,21 @@ uint8_t DAC_Output_AcquireBuffer(uint16_t **buffer, uint8_t *index)
 
 uint8_t DAC_Output_CommitBuffer(uint8_t index)
 {
-    if ((index >= DAC_OUTPUT_HALF_SIZE) ||
-        (g_dac_output_half_status[index] != DAC_OUTPUT_HALF_FILLING)) {
+    uint32_t primask;
+
+    if (index >= DAC_OUTPUT_HALF_SIZE) {
+        return 0U;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    if (g_dac_output_half_status[index] != DAC_OUTPUT_HALF_FILLING) {
+        __set_PRIMASK(primask);
         return 0U;
     }
 
     g_dac_output_half_status[index] = DAC_OUTPUT_HALF_READY;
+    __set_PRIMASK(primask);
     return 1U;
 }
 

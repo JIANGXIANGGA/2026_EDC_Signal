@@ -1,7 +1,7 @@
 #include "ad9910_service.h"
 
 #include "ad9910.h"
-#include "main.h"
+#include "ad9910_board.h"
 
 #define AD9910_SERVICE_POWER_UP_DELAY_MS 300U
 #define AD9910_SERVICE_PLL_LOCK_DELAY_MS 10U
@@ -29,15 +29,6 @@
      (~AD9910_SERVICE_CFR2_PROFILE_ASF_ENABLE))
 #define AD9910_SERVICE_CFR2_MANUAL_SWEEP_VALUE \
     (AD9910_SERVICE_CFR2_FIXED_VALUE | AD9910_SERVICE_CFR2_DRG_ENABLE)
-
-/* 数字斜坡控制引脚跟随 CubeMX 生成的 AD9910_* 宏。 */
-#define AD9910_SERVICE_DRCTL_GPIO_PORT AD9910_DRCTL_GPIO_Port
-#define AD9910_SERVICE_DRCTL_GPIO_PIN AD9910_DRCTL_Pin
-#define AD9910_SERVICE_DRHOLD_GPIO_PORT AD9910_DRHOLD_GPIO_Port
-#define AD9910_SERVICE_DRHOLD_GPIO_PIN AD9910_DRHOLD_Pin
-#define AD9910_SERVICE_DROVER_GPIO_PORT AD9910_DROVER_GPIO_Port
-#define AD9910_SERVICE_DROVER_GPIO_PIN AD9910_DROVER_Pin
-#define AD9910_SERVICE_DROVER_EXTI_IRQn EXTI15_10_IRQn
 
 /* 以下 CFR 值来自 KV-AD9910 配套示例：40 MHz 参考输入，PLL 倍频到 1 GHz。 */
 static const uint8_t g_ad9910_cfr1[AD9910_CFR_DATA_LENGTH] = {
@@ -115,58 +106,33 @@ static uint8_t ad9910_service_time_expired(uint32_t deadline_ms)
     return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
 }
 
-static void ad9910_service_init_ramp_gpio(void)
-{
-    GPIO_InitTypeDef gpio_init = {0};
-
-    /* DRC/DPH/DRO 按当前硬件映射初始化。 */
-    __HAL_RCC_GPIOD_CLK_ENABLE();
-    __HAL_RCC_GPIOF_CLK_ENABLE();
-
-    HAL_GPIO_WritePin(AD9910_SERVICE_DRCTL_GPIO_PORT,
-                      AD9910_SERVICE_DRCTL_GPIO_PIN,
-                      GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AD9910_SERVICE_DRHOLD_GPIO_PORT,
-                      AD9910_SERVICE_DRHOLD_GPIO_PIN,
-                      GPIO_PIN_RESET);
-
-    gpio_init.Pin = AD9910_SERVICE_DRCTL_GPIO_PIN;
-    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(AD9910_SERVICE_DRCTL_GPIO_PORT, &gpio_init);
-
-    gpio_init.Pin = AD9910_SERVICE_DRHOLD_GPIO_PIN;
-    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(AD9910_SERVICE_DRHOLD_GPIO_PORT, &gpio_init);
-
-    gpio_init.Pin = AD9910_SERVICE_DROVER_GPIO_PIN;
-    gpio_init.Mode = GPIO_MODE_IT_RISING;
-    gpio_init.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(AD9910_SERVICE_DROVER_GPIO_PORT, &gpio_init);
-
-    HAL_NVIC_SetPriority(AD9910_SERVICE_DROVER_EXTI_IRQn, 6U, 0U);
-    HAL_NVIC_EnableIRQ(AD9910_SERVICE_DROVER_EXTI_IRQn);
-}
-
 static void ad9910_service_set_sweep_direction(uint8_t direction_up)
 {
     g_ad9910_service.sweep_direction_up = (direction_up != 0U) ? 1U : 0U;
-    HAL_GPIO_WritePin(AD9910_SERVICE_DRCTL_GPIO_PORT,
-                      AD9910_SERVICE_DRCTL_GPIO_PIN,
-                      (g_ad9910_service.sweep_direction_up != 0U) ?
-                          GPIO_PIN_SET : GPIO_PIN_RESET);
+    AD9910_Board_SetSweepDirection(g_ad9910_service.sweep_direction_up);
 }
 
 static void ad9910_service_set_sweep_hold(uint8_t hold)
 {
     g_ad9910_service.sweep_hold = (hold != 0U) ? 1U : 0U;
-    HAL_GPIO_WritePin(AD9910_SERVICE_DRHOLD_GPIO_PORT,
-                      AD9910_SERVICE_DRHOLD_GPIO_PIN,
-                      (g_ad9910_service.sweep_hold != 0U) ?
-                          GPIO_PIN_SET : GPIO_PIN_RESET);
+    AD9910_Board_SetSweepHold(g_ad9910_service.sweep_hold);
+}
+
+static uint8_t ad9910_service_has_pending_transition(void)
+{
+    return ((g_ad9910_service.sweep_start_requested != 0U) ||
+            (g_ad9910_service.sweep_stop_requested != 0U) ||
+            (g_ad9910_service.sweep_stop_in_progress != 0U) ||
+            (g_ad9910_service.ram_start_requested != 0U) ||
+            (g_ad9910_service.ram_stop_requested != 0U)) ? 1U : 0U;
+}
+
+static uint8_t ad9910_service_can_update_profile(void)
+{
+    return ((g_ad9910_service.state == AD9910_SERVICE_STATE_READY) &&
+            (g_ad9910_service.sweep_active == 0U) &&
+            (g_ad9910_service.ram_active == 0U) &&
+            (ad9910_service_has_pending_transition() == 0U)) ? 1U : 0U;
 }
 
 static uint8_t ad9910_service_tone_config_is_valid(
@@ -186,18 +152,7 @@ static void ad9910_service_build_profile(const ad9910_tone_config_t *config) {
 
 static void ad9910_service_select_profile_gpio(uint8_t profile_index)
 {
-    HAL_GPIO_WritePin(AD9910_PROFILE0_GPIO_Port,
-                      AD9910_PROFILE0_Pin,
-                      ((profile_index & 0x01U) != 0U) ?
-                          GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AD9910_PROFILE1_GPIO_Port,
-                      AD9910_PROFILE1_Pin,
-                      ((profile_index & 0x02U) != 0U) ?
-                          GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(AD9910_PROFILE2_GPIO_Port,
-                      AD9910_PROFILE2_Pin,
-                      ((profile_index & 0x04U) != 0U) ?
-                          GPIO_PIN_SET : GPIO_PIN_RESET);
+    AD9910_Board_SelectProfile(profile_index);
 }
 
 static void ad9910_service_update_selected_profile_status(void)
@@ -351,15 +306,10 @@ static HAL_StatusTypeDef ad9910_service_write_register(uint8_t address,
 
 HAL_StatusTypeDef AD9910_Service_Init(SPI_HandleTypeDef *spi)
 {
-    const ad9910_pin_config_t pins = {
-        .csb_port = AD9910_CSB_GPIO_Port,
-        .csb_pin = AD9910_CSB_Pin,
-        .io_update_port = AD9910_IO_UPDATE_GPIO_Port,
-        .io_update_pin = AD9910_IO_UPDATE_Pin,
-    };
+    const ad9910_pin_config_t *pins = AD9910_Board_GetSerialPinConfig();
     HAL_StatusTypeDef status;
 
-    status = AD9910_Init(&g_ad9910_service.device, spi, &pins);
+    status = AD9910_Init(&g_ad9910_service.device, spi, pins);
     if (status != HAL_OK) {
         return status;
     }
@@ -390,7 +340,6 @@ HAL_StatusTypeDef AD9910_Service_Init(SPI_HandleTypeDef *spi)
     g_ad9910_service.ram_data_length = 0U;
     g_ad9910_service.ramp_limit_event_count = 0U;
     g_ad9910_service.last_hal_error = HAL_SPI_ERROR_NONE;
-    ad9910_service_init_ramp_gpio();
     ad9910_service_set_sweep_direction(1U);
     ad9910_service_set_sweep_hold(0U);
     ad9910_service_select_profile_gpio(0U);
@@ -807,11 +756,7 @@ HAL_StatusTypeDef AD9910_Service_SetFrequency(uint32_t frequency_hz)
         return HAL_ERROR;
     }
 
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active != 0U) ||
-        (g_ad9910_service.sweep_start_requested != 0U) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if (ad9910_service_can_update_profile() == 0U) {
         return HAL_BUSY;
     }
 
@@ -832,9 +777,7 @@ HAL_StatusTypeDef AD9910_Service_SetAmplitude(uint16_t amplitude)
         return HAL_ERROR;
     }
 
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if (ad9910_service_can_update_profile() == 0U) {
         return HAL_BUSY;
     }
 
@@ -851,9 +794,7 @@ HAL_StatusTypeDef AD9910_Service_SetAmplitude(uint16_t amplitude)
 
 HAL_StatusTypeDef AD9910_Service_SetPhaseOffset(uint16_t phase_offset)
 {
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if (ad9910_service_can_update_profile() == 0U) {
         return HAL_BUSY;
     }
 
@@ -874,11 +815,7 @@ HAL_StatusTypeDef AD9910_Service_SetTone(const ad9910_tone_config_t *config)
         return HAL_ERROR;
     }
 
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active != 0U) ||
-        (g_ad9910_service.sweep_start_requested != 0U) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if (ad9910_service_can_update_profile() == 0U) {
         return HAL_BUSY;
     }
 
@@ -900,11 +837,8 @@ HAL_StatusTypeDef AD9910_Service_ProgramProfile(
         return HAL_ERROR;
     }
 
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active != 0U) ||
-        (g_ad9910_service.profile_update_requested != 0U) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if ((ad9910_service_can_update_profile() == 0U) ||
+        (g_ad9910_service.profile_update_requested != 0U)) {
         return HAL_BUSY;
     }
 
@@ -929,11 +863,8 @@ HAL_StatusTypeDef AD9910_Service_SelectProfile(uint8_t profile_index)
         return HAL_ERROR;
     }
 
-    if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active != 0U) ||
-        (g_ad9910_service.profile_update_requested != 0U) ||
-        (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+    if ((ad9910_service_can_update_profile() == 0U) ||
+        (g_ad9910_service.profile_update_requested != 0U)) {
         return HAL_BUSY;
     }
 
@@ -952,10 +883,10 @@ HAL_StatusTypeDef AD9910_Service_StartFrequencySweep(
     }
 
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_start_requested != 0U) ||
-        (g_ad9910_service.sweep_stop_requested != 0U) ||
+        (g_ad9910_service.profile_update_requested != 0U) ||
+        (g_ad9910_service.sweep_active != 0U) ||
         (g_ad9910_service.ram_active != 0U) ||
-        (g_ad9910_service.ram_start_requested != 0U)) {
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 
@@ -974,8 +905,7 @@ HAL_StatusTypeDef AD9910_Service_StopFrequencySweep(uint32_t frequency_hz)
     }
 
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_start_requested != 0U) ||
-        (g_ad9910_service.sweep_stop_requested != 0U)) {
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 
@@ -1003,10 +933,9 @@ HAL_StatusTypeDef AD9910_Service_StartRamPlayback(
     }
 
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.ram_start_requested != 0U) ||
-        (g_ad9910_service.ram_stop_requested != 0U) ||
-        (g_ad9910_service.sweep_start_requested != 0U) ||
-        (g_ad9910_service.sweep_stop_requested != 0U)) {
+        (g_ad9910_service.profile_update_requested != 0U) ||
+        (g_ad9910_service.sweep_active != 0U) ||
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 
@@ -1024,8 +953,7 @@ HAL_StatusTypeDef AD9910_Service_StopRamPlayback(uint32_t frequency_hz)
     }
 
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.ram_start_requested != 0U) ||
-        (g_ad9910_service.ram_stop_requested != 0U)) {
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 
@@ -1047,7 +975,8 @@ HAL_StatusTypeDef AD9910_Service_StopRamPlayback(uint32_t frequency_hz)
 HAL_StatusTypeDef AD9910_Service_SetFrequencySweepDirection(uint8_t direction_up)
 {
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active == 0U)) {
+        (g_ad9910_service.sweep_active == 0U) ||
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 
@@ -1058,7 +987,8 @@ HAL_StatusTypeDef AD9910_Service_SetFrequencySweepDirection(uint8_t direction_up
 HAL_StatusTypeDef AD9910_Service_SetFrequencySweepHold(uint8_t hold)
 {
     if ((g_ad9910_service.state != AD9910_SERVICE_STATE_READY) ||
-        (g_ad9910_service.sweep_active == 0U)) {
+        (g_ad9910_service.sweep_active == 0U) ||
+        (ad9910_service_has_pending_transition() != 0U)) {
         return HAL_BUSY;
     }
 

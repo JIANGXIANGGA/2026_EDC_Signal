@@ -18,6 +18,30 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
+option(SIGNAL_ENABLE_ADC_DAC_LOOPBACK
+       "Enable ADC121S101 to DAC ping-pong loopback" OFF)
+option(SIGNAL_ENABLE_AD9910_AUTO_TEST
+       "Enable the AD9910 RAM waveform boot self-test" ON)
+option(SIGNAL_ENABLE_AD9910_SINGLE_TONE
+       "Enable the AD9910 single-tone output mode" ON)
+option(SIGNAL_ENABLE_AD9910_RAM_PLAYBACK
+       "Enable the AD9910 RAM waveform playback mode" ON)
+
+if(NOT SIGNAL_ENABLE_AD9910_SINGLE_TONE AND
+   NOT SIGNAL_ENABLE_AD9910_RAM_PLAYBACK)
+    message(FATAL_ERROR
+        "At least one AD9910 output mode must be enabled")
+endif()
+
+set(SIGNAL_AD9910_AUTO_TEST_ENABLED
+    ${SIGNAL_ENABLE_AD9910_AUTO_TEST})
+if(SIGNAL_AD9910_AUTO_TEST_ENABLED AND
+   NOT SIGNAL_ENABLE_AD9910_RAM_PLAYBACK)
+    set(SIGNAL_AD9910_AUTO_TEST_ENABLED OFF)
+    message(STATUS
+        "AD9910 auto-test disabled because RAM playback is disabled")
+endif()
+
 # Set the project name
 set(CMAKE_PROJECT_NAME G474)
 
@@ -55,11 +79,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Modules/AD9910/ad9910.c
-    Modules/DAC/dac_output.c
+    Modules/AD9910/ad9910_board.c
     Modules/ADC/adc121s101.c
     Services/ad9910_service.c
     Services/ad9910_sweep_planner.c
-    Services/adc_dac_loopback_service.c
+    Services/signal_acquisition_service.c
+    Services/usart_hmi_service.c
     Services/waveform_analyzer_service.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.c
@@ -69,12 +94,22 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_init_f32.c
     App/signal_app.c
     App/ad9910_signal_generator_app.c
+    App/one_hmi_ad9910_interface.c
     App/tjc_ad9910_interface.c
-    App/ad9910_ram_waveform_app.c
-    App/ad9910_ram_waveform_presets.c
-    App/ad9910_demo_app.c
-    App/ad9910_demo_presets.c
 )
+
+if(SIGNAL_ENABLE_ADC_DAC_LOOPBACK)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+        Modules/DAC/dac_output.c
+        Services/adc_dac_loopback_service.c
+    )
+endif()
+
+if(SIGNAL_AD9910_AUTO_TEST_ENABLED)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+        App/ad9910_auto_test_app.c
+    )
+endif()
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -96,6 +131,10 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     ARM_TABLE_TWIDDLECOEF_F32_2048
     ARM_TABLE_BITREVIDX_FLT_2048
     ARM_TABLE_TWIDDLECOEF_RFFT_F32_4096
+    SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK=$<BOOL:${SIGNAL_ENABLE_ADC_DAC_LOOPBACK}>
+    SIGNAL_APP_ENABLE_AD9910_AUTO_TEST=$<BOOL:${SIGNAL_AD9910_AUTO_TEST_ENABLED}>
+    AD9910_SIGGEN_ENABLE_SINGLE_TONE=$<BOOL:${SIGNAL_ENABLE_AD9910_SINGLE_TONE}>
+    AD9910_SIGGEN_ENABLE_RAM_PLAYBACK=$<BOOL:${SIGNAL_ENABLE_AD9910_RAM_PLAYBACK}>
 )
 
 # Add linked libraries

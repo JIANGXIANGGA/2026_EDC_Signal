@@ -95,7 +95,15 @@ int main(void)
   MX_SPI2_Init();
   MX_SPI4_Init();
   /* USER CODE BEGIN 2 */
-  if (Signal_App_Init(&hspi4, &hspi2, &htim7, &hdac1, &htim6) != HAL_OK)
+  const signal_app_config_t signal_app_config = {
+    .ad9910_spi = &hspi4,
+    .adc_spi = &hspi2,
+    .adc_timer = &htim7,
+    .dac = &hdac1,
+    .dac_timer = &htim6,
+  };
+
+  if (Signal_App_Init(&signal_app_config) != HAL_OK)
   {
     Error_Handler();
   }
