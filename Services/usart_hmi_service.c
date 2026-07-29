@@ -6,13 +6,18 @@
 #define USART_HMI_TERMINATOR_BYTE 0xFFU
 #define USART_HMI_TERMINATOR_SIZE 3U
 #define USART_HMI_COMMAND_MAX_SIZE 96U
+#define USART_HMI_WAVEFORM_CHANNEL_COUNT 4U
+
+_Static_assert(USART_HMI_TRANSPARENT_MAX_SIZE >=
+                   (USART_HMI_COMMAND_MAX_SIZE + USART_HMI_TERMINATOR_SIZE),
+               "HMI TX buffer is too small for commands");
 
 typedef struct {
     usart_hmi_send_bytes_fn_t send_bytes;
     void *user_context;
     uint8_t async_tx;
     volatile uint8_t tx_busy;
-    uint8_t tx_buffer[USART_HMI_COMMAND_MAX_SIZE + USART_HMI_TERMINATOR_SIZE];
+    uint8_t tx_buffer[USART_HMI_TRANSPARENT_MAX_SIZE];
     uint8_t rx_ring[USART_HMI_RX_RING_SIZE];
     volatile uint16_t rx_head;
     volatile uint16_t rx_tail;
@@ -230,14 +235,26 @@ static uint8_t usart_hmi_rx_pop(uint8_t *byte)
     return 1U;
 }
 
-static HAL_StatusTypeDef usart_hmi_send_buffer(const uint8_t *data,
-                                                uint16_t length)
+static HAL_StatusTypeDef usart_hmi_start_tx(const uint8_t *data,
+                                             uint16_t length,
+                                             uint8_t append_terminator)
 {
     HAL_StatusTypeDef status;
+    uint32_t required_length;
     uint16_t total_length;
 
     if ((g_usart_hmi.send_bytes == NULL) || (data == NULL) ||
-        (length == 0U) || (length > USART_HMI_COMMAND_MAX_SIZE)) {
+        (length == 0U)) {
+        g_usart_hmi.status.last_tx_status = HAL_ERROR;
+        g_usart_hmi.status.tx_errors++;
+        return HAL_ERROR;
+    }
+
+    required_length = (uint32_t)length;
+    if (append_terminator != 0U) {
+        required_length += USART_HMI_TERMINATOR_SIZE;
+    }
+    if (required_length > sizeof(g_usart_hmi.tx_buffer)) {
         g_usart_hmi.status.last_tx_status = HAL_ERROR;
         g_usart_hmi.status.tx_errors++;
         return HAL_ERROR;
@@ -250,9 +267,11 @@ static HAL_StatusTypeDef usart_hmi_send_buffer(const uint8_t *data,
 
     memcpy(g_usart_hmi.tx_buffer, data, length);
     total_length = length;
-    for (uint8_t index = 0U; index < USART_HMI_TERMINATOR_SIZE; ++index) {
-        g_usart_hmi.tx_buffer[total_length] = USART_HMI_TERMINATOR_BYTE;
-        total_length++;
+    if (append_terminator != 0U) {
+        for (uint8_t index = 0U; index < USART_HMI_TERMINATOR_SIZE; ++index) {
+            g_usart_hmi.tx_buffer[total_length] = USART_HMI_TERMINATOR_BYTE;
+            total_length++;
+        }
     }
 
     g_usart_hmi.tx_busy = g_usart_hmi.async_tx;
@@ -265,12 +284,29 @@ static HAL_StatusTypeDef usart_hmi_send_buffer(const uint8_t *data,
 
     g_usart_hmi.status.last_tx_status = status;
     if (status == HAL_OK) {
-        g_usart_hmi.status.tx_commands++;
+        if (append_terminator != 0U) {
+            g_usart_hmi.status.tx_commands++;
+        } else {
+            g_usart_hmi.status.tx_transparent_transfers++;
+            g_usart_hmi.status.tx_transparent_bytes += length;
+        }
     } else {
         g_usart_hmi.status.tx_errors++;
     }
 
     return status;
+}
+
+static HAL_StatusTypeDef usart_hmi_send_buffer(const uint8_t *data,
+                                                uint16_t length)
+{
+    if ((length == 0U) || (length > USART_HMI_COMMAND_MAX_SIZE)) {
+        g_usart_hmi.status.last_tx_status = HAL_ERROR;
+        g_usart_hmi.status.tx_errors++;
+        return HAL_ERROR;
+    }
+
+    return usart_hmi_start_tx(data, length, 1U);
 }
 
 HAL_StatusTypeDef Usart_HMI_Service_Init(
@@ -295,6 +331,17 @@ void Usart_HMI_Service_Process(void)
     while (usart_hmi_rx_pop(&byte) != 0U) {
         usart_hmi_parser_push_byte(byte);
     }
+}
+
+void Usart_HMI_Service_ResetRx(void)
+{
+    g_usart_hmi.rx_head = 0U;
+    g_usart_hmi.rx_tail = 0U;
+    g_usart_hmi.frame_length = 0U;
+    g_usart_hmi.pending_ff_count = 0U;
+    g_usart_hmi.frame_overflow = 0U;
+    g_usart_hmi.event_head = 0U;
+    g_usart_hmi.event_tail = 0U;
 }
 
 void Usart_HMI_Service_NotifyTxComplete(void)
@@ -452,4 +499,66 @@ HAL_StatusTypeDef Usart_HMI_Service_GetProperty(const char *object_name,
     }
 
     return Usart_HMI_Service_SendCommand(command);
+}
+
+HAL_StatusTypeDef Usart_HMI_Service_RequestCurrentPage(void)
+{
+    return Usart_HMI_Service_SendCommand("sendme");
+}
+
+HAL_StatusTypeDef Usart_HMI_Service_ClearWaveform(uint8_t component_id,
+                                                   uint8_t channel)
+{
+    char command[USART_HMI_COMMAND_MAX_SIZE];
+    int written;
+
+    if ((channel >= USART_HMI_WAVEFORM_CHANNEL_COUNT) &&
+        (channel != 0xFFU)) {
+        return HAL_ERROR;
+    }
+
+    written = snprintf(command, sizeof(command), "cle %u,%u",
+                       component_id, channel);
+    if ((written <= 0) || ((size_t)written >= sizeof(command))) {
+        return HAL_ERROR;
+    }
+
+    return Usart_HMI_Service_SendCommand(command);
+}
+
+HAL_StatusTypeDef Usart_HMI_Service_BeginWaveformTransfer(
+    uint8_t component_id,
+    uint8_t channel,
+    uint16_t point_count)
+{
+    char command[USART_HMI_COMMAND_MAX_SIZE];
+    int written;
+
+    if ((channel >= USART_HMI_WAVEFORM_CHANNEL_COUNT) ||
+        (point_count == 0U) ||
+        (point_count > USART_HMI_TRANSPARENT_MAX_SIZE)) {
+        return HAL_ERROR;
+    }
+
+    written = snprintf(command, sizeof(command), "addt %u,%u,%u",
+                       component_id, channel, point_count);
+    if ((written <= 0) || ((size_t)written >= sizeof(command))) {
+        return HAL_ERROR;
+    }
+
+    return Usart_HMI_Service_SendCommand(command);
+}
+
+HAL_StatusTypeDef Usart_HMI_Service_SendTransparentData(
+    const uint8_t *data,
+    uint16_t length)
+{
+    if ((data == NULL) || (length == 0U) ||
+        (length > USART_HMI_TRANSPARENT_MAX_SIZE)) {
+        g_usart_hmi.status.last_tx_status = HAL_ERROR;
+        g_usart_hmi.status.tx_errors++;
+        return HAL_ERROR;
+    }
+
+    return usart_hmi_start_tx(data, length, 0U);
 }

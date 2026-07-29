@@ -11,14 +11,20 @@
 #define WAVEFORM_ANALYZER_CLIP_LOW_CODE 2U
 #define WAVEFORM_ANALYZER_CLIP_HIGH_CODE 4093U
 #define WAVEFORM_ANALYZER_PI 3.14159265358979323846f
-#define WAVEFORM_ANALYZER_HANN_COHERENT_GAIN 0.5f
 #define WAVEFORM_ANALYZER_HARMONIC_SEARCH_RADIUS 1U
+#define WAVEFORM_ANALYZER_MIN_FREQUENCY_HZ 10000.0f
+#define WAVEFORM_ANALYZER_MAX_FREQUENCY_HZ 500000.0f
+#define WAVEFORM_ANALYZER_MIN_PEAK_CODE 1.0f
+#define WAVEFORM_ANALYZER_RELATIVE_PEAK_THRESHOLD 0.005f
+#define WAVEFORM_ANALYZER_PEAK_GUARD_BINS 8U
+#define WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT 8U
 #define WAVEFORM_ANALYZER_CCMRAM __attribute__((section(".ccmram"), aligned(4)))
 
 typedef struct {
     arm_rfft_fast_instance_f32 fft;
     uint8_t initialized;
     uint32_t sample_rate_hz;
+    float window_sum;
 } waveform_analyzer_context_t;
 
 static waveform_analyzer_context_t g_waveform_analyzer;
@@ -43,11 +49,14 @@ static float waveform_analyzer_clamp_percent(float value)
 
 static void waveform_analyzer_init_window(void)
 {
+    g_waveform_analyzer.window_sum = 0.0f;
     for (uint32_t index = 0U; index < WAVEFORM_ANALYZER_FFT_SIZE; ++index) {
         const float phase =
             (2.0f * WAVEFORM_ANALYZER_PI * (float)index) /
             (float)(WAVEFORM_ANALYZER_FFT_SIZE - 1U);
         g_waveform_analyzer_window[index] = 0.5f - (0.5f * cosf(phase));
+        g_waveform_analyzer.window_sum +=
+            g_waveform_analyzer_window[index];
     }
 }
 
@@ -79,6 +88,7 @@ static void waveform_analyzer_clear_result(uint32_t sample_rate_hz)
     g_waveform_analyzer_result.harmonic5_percent = 0.0f;
     g_waveform_analyzer_result.thd_percent = 0.0f;
     g_waveform_analyzer_result.duty_percent = 0.0f;
+    g_waveform_analyzer_result.peak_count = 0U;
     for (uint8_t index = 0U; index < WAVEFORM_ANALYZER_PEAK_COUNT; ++index) {
         g_waveform_analyzer_result.peak_bins[index] = 0U;
         g_waveform_analyzer_result.peak_frequencies_hz[index] = 0.0f;
@@ -137,79 +147,198 @@ static void waveform_analyzer_build_magnitude(void)
         const float raw_magnitude = sqrtf((real * real) + (imag * imag));
 
         g_waveform_analyzer_fft_output[bin] =
-            (2.0f * raw_magnitude) /
-            ((float)WAVEFORM_ANALYZER_FFT_SIZE *
-             WAVEFORM_ANALYZER_HANN_COHERENT_GAIN);
+            (g_waveform_analyzer.window_sum > 0.0f) ?
+                ((2.0f * raw_magnitude) /
+                 g_waveform_analyzer.window_sum) :
+                0.0f;
     }
 }
 
-static uint16_t waveform_analyzer_find_fundamental_bin(void)
+static uint8_t waveform_analyzer_is_local_peak(uint16_t bin)
 {
-    float max_magnitude = 0.0f;
-    uint16_t max_bin = 0U;
+    const float previous = waveform_analyzer_get_bin_magnitude(
+        (uint16_t)(bin - 1U));
+    const float current = waveform_analyzer_get_bin_magnitude(bin);
+    const float next = waveform_analyzer_get_bin_magnitude(
+        (uint16_t)(bin + 1U));
 
-    for (uint16_t bin = 1U; bin < WAVEFORM_ANALYZER_BIN_COUNT; ++bin) {
-        const float magnitude = waveform_analyzer_get_bin_magnitude(bin);
-        if (magnitude > max_magnitude) {
-            max_magnitude = magnitude;
-            max_bin = bin;
+    return ((current > previous) && (current >= next)) ? 1U : 0U;
+}
+
+static uint8_t waveform_analyzer_peak_is_guarded(uint16_t bin,
+                                                 uint8_t selected_count)
+{
+    for (uint8_t index = 0U; index < selected_count; ++index) {
+        const uint16_t selected_bin =
+            g_waveform_analyzer_result.peak_bins[index];
+        const uint16_t distance = (bin >= selected_bin) ?
+                                      (uint16_t)(bin - selected_bin) :
+                                      (uint16_t)(selected_bin - bin);
+        if (distance <= WAVEFORM_ANALYZER_PEAK_GUARD_BINS) {
+            return 1U;
         }
     }
 
-    return max_bin;
+    return 0U;
 }
 
-static void waveform_analyzer_insert_peak(uint16_t bin, float magnitude)
+static float waveform_analyzer_hann_response(float delta)
 {
-    for (uint8_t index = 0U; index < WAVEFORM_ANALYZER_PEAK_COUNT; ++index) {
-        if (magnitude >
-            g_waveform_analyzer_result.peak_amplitudes_code[index]) {
-            for (uint8_t move = (WAVEFORM_ANALYZER_PEAK_COUNT - 1U);
-                 move > index;
-                 --move) {
-                g_waveform_analyzer_result.peak_bins[move] =
-                    g_waveform_analyzer_result.peak_bins[move - 1U];
-                g_waveform_analyzer_result.peak_frequencies_hz[move] =
-                    g_waveform_analyzer_result.peak_frequencies_hz[move - 1U];
-                g_waveform_analyzer_result.peak_amplitudes_code[move] =
-                    g_waveform_analyzer_result
-                        .peak_amplitudes_code[move - 1U];
-            }
+    float sinc;
+    float denominator;
 
-            g_waveform_analyzer_result.peak_bins[index] = bin;
-            g_waveform_analyzer_result.peak_frequencies_hz[index] =
-                (float)bin * g_waveform_analyzer_result.bin_resolution_hz;
-            g_waveform_analyzer_result.peak_amplitudes_code[index] =
-                magnitude;
-            break;
+    if (fabsf(delta) < 0.000001f) {
+        return 1.0f;
+    }
+
+    sinc = sinf(WAVEFORM_ANALYZER_PI * delta) /
+           (WAVEFORM_ANALYZER_PI * delta);
+    denominator = 1.0f - (delta * delta);
+    if (fabsf(denominator) < 0.000001f) {
+        return 1.0f;
+    }
+
+    return fabsf(sinc / denominator);
+}
+
+static void waveform_analyzer_store_interpolated_peak(uint8_t index,
+                                                       uint16_t bin)
+{
+    const float left = waveform_analyzer_get_bin_magnitude(
+        (uint16_t)(bin - 1U));
+    const float center = waveform_analyzer_get_bin_magnitude(bin);
+    const float right = waveform_analyzer_get_bin_magnitude(
+        (uint16_t)(bin + 1U));
+    const float denominator = left + (2.0f * center) + right;
+    float delta = 0.0f;
+    float response;
+
+    if (denominator > 0.0f) {
+        /* Hann 窗三点插值，补偿非整周期采样的栅栏与幅值损失。 */
+        delta = (2.0f * (right - left)) / denominator;
+        if (delta < -0.5f) {
+            delta = -0.5f;
+        } else if (delta > 0.5f) {
+            delta = 0.5f;
+        }
+    }
+
+    response = waveform_analyzer_hann_response(delta);
+    g_waveform_analyzer_result.peak_bins[index] = bin;
+    g_waveform_analyzer_result.peak_frequencies_hz[index] =
+        ((float)bin + delta) *
+        g_waveform_analyzer_result.bin_resolution_hz;
+    g_waveform_analyzer_result.peak_amplitudes_code[index] =
+        (response > 0.0f) ? (center / response) : center;
+}
+
+static void waveform_analyzer_sort_peaks_by_frequency(void)
+{
+    for (uint8_t index = 1U;
+         index < g_waveform_analyzer_result.peak_count;
+         ++index) {
+        uint8_t move = index;
+        while ((move > 0U) &&
+               (g_waveform_analyzer_result.peak_frequencies_hz[move] <
+                g_waveform_analyzer_result
+                    .peak_frequencies_hz[move - 1U])) {
+            const uint16_t bin =
+                g_waveform_analyzer_result.peak_bins[move - 1U];
+            const float frequency =
+                g_waveform_analyzer_result
+                    .peak_frequencies_hz[move - 1U];
+            const float amplitude =
+                g_waveform_analyzer_result
+                    .peak_amplitudes_code[move - 1U];
+
+            g_waveform_analyzer_result.peak_bins[move - 1U] =
+                g_waveform_analyzer_result.peak_bins[move];
+            g_waveform_analyzer_result.peak_frequencies_hz[move - 1U] =
+                g_waveform_analyzer_result.peak_frequencies_hz[move];
+            g_waveform_analyzer_result.peak_amplitudes_code[move - 1U] =
+                g_waveform_analyzer_result.peak_amplitudes_code[move];
+            g_waveform_analyzer_result.peak_bins[move] = bin;
+            g_waveform_analyzer_result.peak_frequencies_hz[move] =
+                frequency;
+            g_waveform_analyzer_result.peak_amplitudes_code[move] =
+                amplitude;
+            --move;
         }
     }
 }
 
 static void waveform_analyzer_find_spectrum_peaks(void)
 {
-    const float noise_floor =
-        g_waveform_analyzer_result.fundamental_amplitude_code * 0.02f;
+    const float bin_resolution =
+        g_waveform_analyzer_result.bin_resolution_hz;
+    uint16_t first_bin;
+    uint16_t last_bin;
+    float strongest_magnitude = 0.0f;
 
+    g_waveform_analyzer_result.peak_count = 0U;
     for (uint8_t index = 0U; index < WAVEFORM_ANALYZER_PEAK_COUNT; ++index) {
         g_waveform_analyzer_result.peak_bins[index] = 0U;
         g_waveform_analyzer_result.peak_frequencies_hz[index] = 0.0f;
         g_waveform_analyzer_result.peak_amplitudes_code[index] = 0.0f;
     }
 
-    for (uint16_t bin = 2U; bin < (WAVEFORM_ANALYZER_BIN_COUNT - 1U); ++bin) {
-        const float previous = waveform_analyzer_get_bin_magnitude(
-            (uint16_t)(bin - 1U));
-        const float current = waveform_analyzer_get_bin_magnitude(bin);
-        const float next = waveform_analyzer_get_bin_magnitude(
-            (uint16_t)(bin + 1U));
-
-        if ((current > previous) &&
-            (current >= next) &&
-            (current >= noise_floor)) {
-            waveform_analyzer_insert_peak(bin, current);
-        }
+    if (bin_resolution <= 0.0f) {
+        return;
     }
+
+    first_bin = (uint16_t)(WAVEFORM_ANALYZER_MIN_FREQUENCY_HZ /
+                           bin_resolution);
+    if (((float)first_bin * bin_resolution) <
+        WAVEFORM_ANALYZER_MIN_FREQUENCY_HZ) {
+        first_bin++;
+    }
+    if (first_bin < 2U) {
+        first_bin = 2U;
+    }
+
+    last_bin = (uint16_t)(WAVEFORM_ANALYZER_MAX_FREQUENCY_HZ /
+                          bin_resolution);
+    if (last_bin >= (WAVEFORM_ANALYZER_BIN_COUNT - 1U)) {
+        last_bin = WAVEFORM_ANALYZER_BIN_COUNT - 2U;
+    }
+    if (last_bin < first_bin) {
+        return;
+    }
+
+    for (uint8_t selected = 0U;
+         selected < WAVEFORM_ANALYZER_PEAK_COUNT;
+         ++selected) {
+        float best_magnitude = 0.0f;
+        uint16_t best_bin = 0U;
+
+        for (uint16_t bin = first_bin; bin <= last_bin; ++bin) {
+            const float magnitude =
+                waveform_analyzer_get_bin_magnitude(bin);
+            if ((magnitude > best_magnitude) &&
+                (waveform_analyzer_is_local_peak(bin) != 0U) &&
+                (waveform_analyzer_peak_is_guarded(bin, selected) == 0U)) {
+                best_magnitude = magnitude;
+                best_bin = bin;
+            }
+        }
+
+        if (selected == 0U) {
+            strongest_magnitude = best_magnitude;
+        }
+        if ((best_bin == 0U) ||
+            (best_magnitude < WAVEFORM_ANALYZER_MIN_PEAK_CODE) ||
+            ((selected > 0U) &&
+             (best_magnitude <
+              (strongest_magnitude *
+               WAVEFORM_ANALYZER_RELATIVE_PEAK_THRESHOLD)))) {
+            break;
+        }
+
+        waveform_analyzer_store_interpolated_peak(selected, best_bin);
+        g_waveform_analyzer_result.peak_count++;
+    }
+
+    waveform_analyzer_sort_peaks_by_frequency();
 }
 
 static float waveform_analyzer_ratio_percent(float value, float base)
@@ -263,11 +392,39 @@ static waveform_analyzer_type_t waveform_analyzer_classify(
     return WAVEFORM_ANALYZER_TYPE_UNKNOWN;
 }
 
+static void waveform_analyzer_update_extremes(
+    uint16_t sample,
+    uint16_t *lowest,
+    uint16_t *highest)
+{
+    if (sample < lowest[WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT - 1U]) {
+        uint8_t index = WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT - 1U;
+        while ((index > 0U) && (sample < lowest[index - 1U])) {
+            lowest[index] = lowest[index - 1U];
+            --index;
+        }
+        lowest[index] = sample;
+    }
+
+    if (sample > highest[WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT - 1U]) {
+        uint8_t index = WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT - 1U;
+        while ((index > 0U) && (sample > highest[index - 1U])) {
+            highest[index] = highest[index - 1U];
+            --index;
+        }
+        highest[index] = sample;
+    }
+}
+
 HAL_StatusTypeDef Waveform_Analyzer_Init(uint32_t sample_rate_hz)
 {
     arm_status status;
 
-    if (sample_rate_hz == 0U) {
+    /* 参数调整后仍必须保证 Fs / N 不超过题目要求的 500 Hz。 */
+    if ((sample_rate_hz == 0U) ||
+        ((uint64_t)sample_rate_hz >
+         ((uint64_t)WAVEFORM_ANALYZER_FFT_SIZE *
+          WAVEFORM_ANALYZER_MAX_BIN_RESOLUTION_HZ))) {
         return HAL_ERROR;
     }
 
@@ -293,7 +450,11 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
 {
     uint16_t min_code = WAVEFORM_ANALYZER_ADC_MAX_CODE;
     uint16_t max_code = 0U;
+    uint16_t lowest[WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT];
+    uint16_t highest[WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT];
     uint32_t sum = 0U;
+    uint32_t lowest_sum = 0U;
+    uint32_t highest_sum = 0U;
     uint32_t positive_count = 0U;
     float dc_code;
     float square_sum = 0.0f;
@@ -310,6 +471,13 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         return HAL_ERROR;
     }
 
+    for (uint8_t index = 0U;
+         index < WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT;
+         ++index) {
+        lowest[index] = WAVEFORM_ANALYZER_ADC_MAX_CODE;
+        highest[index] = 0U;
+    }
+
     for (uint32_t index = 0U; index < WAVEFORM_ANALYZER_FFT_SIZE; ++index) {
         const uint16_t sample = samples[index] & WAVEFORM_ANALYZER_ADC_MAX_CODE;
         if (sample < min_code) {
@@ -318,7 +486,15 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         if (sample > max_code) {
             max_code = sample;
         }
+        waveform_analyzer_update_extremes(sample, lowest, highest);
         sum += sample;
+    }
+
+    for (uint8_t index = 0U;
+         index < WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT;
+         ++index) {
+        lowest_sum += lowest[index];
+        highest_sum += highest[index];
     }
 
     dc_code = (float)sum / (float)WAVEFORM_ANALYZER_FFT_SIZE;
@@ -341,9 +517,21 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
                       0U);
     waveform_analyzer_build_magnitude();
 
-    fundamental_bin = waveform_analyzer_find_fundamental_bin();
-    fundamental_magnitude =
-        waveform_analyzer_get_bin_magnitude(fundamental_bin);
+    g_waveform_analyzer_result.sample_rate_hz =
+        g_waveform_analyzer.sample_rate_hz;
+    g_waveform_analyzer_result.bin_resolution_hz =
+        (float)g_waveform_analyzer.sample_rate_hz /
+        (float)WAVEFORM_ANALYZER_FFT_SIZE;
+    waveform_analyzer_find_spectrum_peaks();
+
+    if (g_waveform_analyzer_result.peak_count > 0U) {
+        fundamental_bin = g_waveform_analyzer_result.peak_bins[0];
+        fundamental_magnitude =
+            g_waveform_analyzer_result.peak_amplitudes_code[0];
+    } else {
+        fundamental_bin = 0U;
+        fundamental_magnitude = 0.0f;
+    }
     harmonic2 = waveform_analyzer_get_near_harmonic_magnitude(
         (uint16_t)(fundamental_bin * 2U));
     harmonic3 = waveform_analyzer_get_near_harmonic_magnitude(
@@ -356,11 +544,6 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
     g_waveform_analyzer_result.initialized = 1U;
     g_waveform_analyzer_result.result_ready = 1U;
     g_waveform_analyzer_result.analysis_count++;
-    g_waveform_analyzer_result.sample_rate_hz =
-        g_waveform_analyzer.sample_rate_hz;
-    g_waveform_analyzer_result.bin_resolution_hz =
-        (float)g_waveform_analyzer.sample_rate_hz /
-        (float)WAVEFORM_ANALYZER_FFT_SIZE;
     g_waveform_analyzer_result.min_code = min_code;
     g_waveform_analyzer_result.max_code = max_code;
     g_waveform_analyzer_result.clipped_low =
@@ -371,14 +554,17 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         (uint16_t)((sum + (WAVEFORM_ANALYZER_FFT_SIZE / 2U)) /
                    WAVEFORM_ANALYZER_FFT_SIZE);
     g_waveform_analyzer_result.peak_to_peak_code =
-        (uint16_t)(max_code - min_code);
+        (uint16_t)(((highest_sum - lowest_sum) +
+                    (WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT / 2U)) /
+                   WAVEFORM_ANALYZER_EXTREME_AVERAGE_COUNT);
     g_waveform_analyzer_result.dc_code = dc_code;
     g_waveform_analyzer_result.rms_code =
         sqrtf(square_sum / (float)WAVEFORM_ANALYZER_FFT_SIZE);
     g_waveform_analyzer_result.fundamental_bin = fundamental_bin;
     g_waveform_analyzer_result.fundamental_frequency_hz =
-        (float)fundamental_bin *
-        g_waveform_analyzer_result.bin_resolution_hz;
+        (g_waveform_analyzer_result.peak_count > 0U) ?
+            g_waveform_analyzer_result.peak_frequencies_hz[0] :
+            0.0f;
     g_waveform_analyzer_result.fundamental_amplitude_code =
         fundamental_magnitude;
     g_waveform_analyzer_result.harmonic2_percent =
@@ -400,7 +586,6 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         waveform_analyzer_clamp_percent(
             ((float)positive_count * 100.0f) /
             (float)WAVEFORM_ANALYZER_FFT_SIZE);
-    waveform_analyzer_find_spectrum_peaks();
     g_waveform_analyzer_result.waveform_type =
         waveform_analyzer_classify(
             g_waveform_analyzer_result.peak_to_peak_code,

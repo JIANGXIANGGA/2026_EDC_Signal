@@ -26,7 +26,6 @@
 
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
-DMA_HandleTypeDef hdma_tim7_up;
 
 /* TIM6 init function */
 void MX_TIM6_Init(void)
@@ -77,19 +76,33 @@ void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 9;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 15;
+  htim7.Init.Period = 7;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* ADC1 以 2 MSPS 采样：160 MHz / (9 + 1) / (7 + 1)。 */
+  htim7.Init.Prescaler = 9U;
+  htim7.Init.Period = 7U;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /* USER CODE END TIM7_Init 2 */
 
@@ -120,25 +133,6 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM7_MspInit 0 */
     /* TIM7 clock enable */
     __HAL_RCC_TIM7_CLK_ENABLE();
-
-    /* TIM7 DMA Init */
-    /* TIM7_UP Init */
-    hdma_tim7_up.Instance = DMA1_Channel4;
-    hdma_tim7_up.Init.Request = DMA_REQUEST_TIM7_UP;
-    hdma_tim7_up.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    hdma_tim7_up.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_tim7_up.Init.MemInc = DMA_MINC_DISABLE;
-    hdma_tim7_up.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_tim7_up.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_tim7_up.Init.Mode = DMA_CIRCULAR;
-    hdma_tim7_up.Init.Priority = DMA_PRIORITY_HIGH;
-    if (HAL_DMA_Init(&hdma_tim7_up) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    __HAL_LINKDMA(tim_baseHandle,hdma[TIM_DMA_ID_UPDATE],hdma_tim7_up);
-
   /* USER CODE BEGIN TIM7_MspInit 1 */
 
   /* USER CODE END TIM7_MspInit 1 */
@@ -176,9 +170,6 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM7_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_TIM7_CLK_DISABLE();
-
-    /* TIM7 DMA DeInit */
-    HAL_DMA_DeInit(tim_baseHandle->hdma[TIM_DMA_ID_UPDATE]);
   /* USER CODE BEGIN TIM7_MspDeInit 1 */
 
   /* USER CODE END TIM7_MspDeInit 1 */

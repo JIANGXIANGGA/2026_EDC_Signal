@@ -17,6 +17,10 @@
 #define USART_HMI_EVENT_QUEUE_SIZE 8U
 #endif
 
+#ifndef USART_HMI_TRANSPARENT_MAX_SIZE
+#define USART_HMI_TRANSPARENT_MAX_SIZE 1024U
+#endif
+
 typedef HAL_StatusTypeDef (*usart_hmi_send_bytes_fn_t)(
     const uint8_t *data,
     uint16_t length,
@@ -96,6 +100,8 @@ typedef struct {
     uint32_t frame_overflows;
     uint32_t event_queue_overflows;
     uint32_t tx_commands;
+    uint32_t tx_transparent_transfers;
+    uint32_t tx_transparent_bytes;
     uint32_t tx_errors;
     HAL_StatusTypeDef last_tx_status;
 } usart_hmi_status_t;
@@ -103,6 +109,7 @@ typedef struct {
 HAL_StatusTypeDef Usart_HMI_Service_Init(
     const usart_hmi_service_config_t *config);
 void Usart_HMI_Service_Process(void);
+void Usart_HMI_Service_ResetRx(void);
 void Usart_HMI_Service_NotifyTxComplete(void);
 HAL_StatusTypeDef Usart_HMI_Service_PushRxBytes(const uint8_t *data,
                                                  uint16_t length);
@@ -119,5 +126,15 @@ HAL_StatusTypeDef Usart_HMI_Service_SetVisible(const char *object_name,
 HAL_StatusTypeDef Usart_HMI_Service_Page(const char *page_name);
 HAL_StatusTypeDef Usart_HMI_Service_GetProperty(const char *object_name,
                                                  const char *property_name);
+HAL_StatusTypeDef Usart_HMI_Service_RequestCurrentPage(void);
+HAL_StatusTypeDef Usart_HMI_Service_ClearWaveform(uint8_t component_id,
+                                                   uint8_t channel);
+HAL_StatusTypeDef Usart_HMI_Service_BeginWaveformTransfer(
+    uint8_t component_id,
+    uint8_t channel,
+    uint16_t point_count);
+HAL_StatusTypeDef Usart_HMI_Service_SendTransparentData(
+    const uint8_t *data,
+    uint16_t length);
 
 #endif

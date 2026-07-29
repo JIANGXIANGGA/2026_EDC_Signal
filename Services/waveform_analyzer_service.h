@@ -7,7 +7,9 @@
 
 #define WAVEFORM_ANALYZER_FFT_SIZE 4096U
 #define WAVEFORM_ANALYZER_BIN_COUNT (WAVEFORM_ANALYZER_FFT_SIZE / 2U)
-#define WAVEFORM_ANALYZER_PEAK_COUNT 8U
+#define WAVEFORM_ANALYZER_PEAK_COUNT 6U
+/* 题目允许的最大 FFT 频率栅格间隔。 */
+#define WAVEFORM_ANALYZER_MAX_BIN_RESOLUTION_HZ 500U
 
 typedef enum {
     WAVEFORM_ANALYZER_TYPE_UNKNOWN = 0,
@@ -42,6 +44,8 @@ typedef struct {
     float harmonic5_percent;
     float thd_percent;
     float duty_percent;
+    uint8_t peak_count;
+    /* 有效谱线按频率从低到高排列，第一条即基波。 */
     uint16_t peak_bins[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_frequencies_hz[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_amplitudes_code[WAVEFORM_ANALYZER_PEAK_COUNT];

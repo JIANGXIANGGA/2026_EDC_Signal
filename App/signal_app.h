@@ -3,30 +3,25 @@
 
 #include <stdint.h>
 
-#include "ad9910_signal_generator_app.h"
+#include "signal_hmi_app.h"
 #include "signal_acquisition_service.h"
 #include "stm32g4xx_hal.h"
-
-#ifndef SIGNAL_APP_ENABLE_AD9910_AUTO_TEST
-#define SIGNAL_APP_ENABLE_AD9910_AUTO_TEST 1U
-#endif
 
 typedef enum {
     SIGNAL_APP_ERROR_NONE = 0,
     SIGNAL_APP_ERROR_INVALID_CONFIG,
-    SIGNAL_APP_ERROR_AD9910_INIT,
+    SIGNAL_APP_ERROR_HMI_INIT,
     SIGNAL_APP_ERROR_ACQUISITION_INIT,
-    SIGNAL_APP_ERROR_AD9910_RUNTIME,
-    SIGNAL_APP_ERROR_ACQUISITION_RUNTIME,
-    SIGNAL_APP_ERROR_AUTO_TEST
+    SIGNAL_APP_ERROR_HMI_RUNTIME,
+    SIGNAL_APP_ERROR_ACQUISITION_RUNTIME
 } signal_app_error_t;
 
 typedef struct {
-    SPI_HandleTypeDef *ad9910_spi;
-    SPI_HandleTypeDef *adc_spi;
     TIM_HandleTypeDef *adc_timer;
+    UART_HandleTypeDef *hmi_uart;
     DAC_HandleTypeDef *dac;
     TIM_HandleTypeDef *dac_timer;
+    const signal_measurement_calibration_t *measurement_calibration;
 } signal_app_config_t;
 
 typedef struct {
@@ -34,7 +29,7 @@ typedef struct {
     signal_app_error_t error;
     HAL_StatusTypeDef last_hal_status;
     uint32_t process_count;
-    ad9910_siggen_status_t signal_generator;
+    signal_hmi_status_t hmi;
     signal_acquisition_status_t acquisition;
 } signal_app_status_t;
 

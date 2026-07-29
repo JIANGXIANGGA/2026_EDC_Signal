@@ -5,14 +5,9 @@
 
 #include "ad9910_service.h"
 
-/* 可由 CMake 选项覆盖，非 CMake 构建默认同时启用两种输出模式。 */
-#ifndef AD9910_SIGGEN_ENABLE_SINGLE_TONE
+/* AD9910 输出模式快捷开关：1U 启用，0U 禁用。 */
 #define AD9910_SIGGEN_ENABLE_SINGLE_TONE 1U
-#endif
-
-#ifndef AD9910_SIGGEN_ENABLE_RAM_PLAYBACK
-#define AD9910_SIGGEN_ENABLE_RAM_PLAYBACK 1U
-#endif
+#define AD9910_SIGGEN_ENABLE_RAM_PLAYBACK 0U
 
 #if ((AD9910_SIGGEN_ENABLE_SINGLE_TONE != 0U) && \
      (AD9910_SIGGEN_ENABLE_SINGLE_TONE != 1U))

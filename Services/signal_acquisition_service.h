@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "signal_measurement_service.h"
 #include "stm32g4xx_hal.h"
 #include "waveform_analyzer_service.h"
 
@@ -15,17 +16,19 @@ typedef enum {
     SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
     SIGNAL_ACQUISITION_ERROR_ADC_INIT,
     SIGNAL_ACQUISITION_ERROR_ANALYZER_INIT,
+    SIGNAL_ACQUISITION_ERROR_MEASUREMENT_INIT,
     SIGNAL_ACQUISITION_ERROR_LOOPBACK_INIT,
     SIGNAL_ACQUISITION_ERROR_ADC_START,
     SIGNAL_ACQUISITION_ERROR_ADC_RUNTIME,
-    SIGNAL_ACQUISITION_ERROR_ANALYZER_RUNTIME
+    SIGNAL_ACQUISITION_ERROR_ANALYZER_RUNTIME,
+    SIGNAL_ACQUISITION_ERROR_MEASUREMENT_RUNTIME
 } signal_acquisition_error_t;
 
 typedef struct {
-    SPI_HandleTypeDef *adc_spi;
     TIM_HandleTypeDef *adc_timer;
     DAC_HandleTypeDef *dac;
     TIM_HandleTypeDef *dac_timer;
+    const signal_measurement_calibration_t *measurement_calibration;
 } signal_acquisition_config_t;
 
 typedef struct {
@@ -58,11 +61,20 @@ typedef struct {
     uint16_t waveform_average_code;
     float waveform_rms_code;
     float waveform_thd_percent;
+    signal_measurement_result_t measurement;
 } signal_acquisition_status_t;
 
 HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     const signal_acquisition_config_t *config);
 HAL_StatusTypeDef Signal_Acquisition_Service_Process(void);
+/**
+ * @brief 获取最近一次完成分析的 ADC 采样块。
+ * @note 返回指针在下一次 Signal_Acquisition_Service_Process() 前有效。
+ */
+uint8_t Signal_Acquisition_Service_GetLatestBlock(
+    const uint16_t **samples,
+    uint32_t *length,
+    uint32_t *sequence);
 const signal_acquisition_status_t *Signal_Acquisition_Service_GetStatus(void);
 
 #endif
