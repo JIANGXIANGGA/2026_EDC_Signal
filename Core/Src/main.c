@@ -18,10 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dac.h"
 #include "dma.h"
-#include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -92,15 +93,15 @@ int main(void)
   MX_TIM6_Init();
   MX_TIM7_Init();
   MX_DAC1_Init();
-  MX_SPI2_Init();
-  MX_SPI4_Init();
+  MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   const signal_app_config_t signal_app_config = {
-    .ad9910_spi = &hspi4,
-    .adc_spi = &hspi2,
     .adc_timer = &htim7,
+    .hmi_uart = &huart1,
     .dac = &hdac1,
     .dac_timer = &htim6,
+    .measurement_calibration = NULL,
   };
 
   if (Signal_App_Init(&signal_app_config) != HAL_OK)

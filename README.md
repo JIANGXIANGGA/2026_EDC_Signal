@@ -1,104 +1,156 @@
-# STM32G474 信号采集与 AD9910 控制固件
+# STM32G474 周期信号测量分析装置
 
-本项目基于 STM32G474VET6、STM32 HAL 和 C11，实现：
+本项目面向 2026 年电赛 G 题，使用 STM32G474VET6、STM32 HAL 和 C11，测量外部
+信号发生器输出的周期信号。固件不再生成测试信号，AD9910 Driver、Service、
+Application 和自测代码均不参与当前构建。
 
-- ADC121S101 定时 SPI DMA 采集与 Ping-Pong Buffer。
-- 4096 点 CMSIS-DSP RFFT、频率/幅值/THD/波形类型分析。
-- AD9910 单音、RAM 波形和数字斜坡异步控制。
-- 可选 ADC 到 DAC 的同采样率 Ping-Pong 回环。
-- 面向后续 TJC 串口屏的命令入口。
+## 当前功能
+
+- 片内 ADC1：PB0/ADC1_IN15、TIM7 TRGO、DMA Ping-Pong 连续采样。
+- 4096 点 CMSIS-DSP RFFT、Hann 窗、三点频率/幅值插值。
+- 10 kHz～500 kHz 谱峰搜索、谐波族筛选、1～3 条有效谱线输出。
+- 峰峰值、真有效值、基频、各频率分量幅值及频谱图显示。
+- TJC 串口屏 USART1 DMA 通信，可选择显示 1 个或 3 个完整周期。
+- 可选 ADC 到 DAC 的同采样率 Ping-Pong 回环，默认关闭。
 
 ## 软件架构
 
 ```text
 Application
-├── signal_app                    总调度、错误聚合
-├── ad9910_signal_generator_app   用户参数、模式与预设状态机
-├── ad9910_auto_test_app          可选上电 RAM 波形测试
-└── tjc_ad9910_interface          TJC 命令适配入口
+└── signal_app                    初始化、主循环调度、错误聚合
         │
 Service │
-├── signal_acquisition_service    采集、FFT、可选回环编排
+├── signal_acquisition_service    DMA 数据交接与分析任务编排
 ├── waveform_analyzer_service     4096 点频谱分析
-├── adc_dac_loopback_service      ADC/DAC 缓冲区交接
-├── ad9910_service                AD9910 异步寄存器状态机
-└── ad9910_sweep_planner          数字斜坡参数规划
+├── signal_measurement_service    电压标定、真有效值与谱线测量
+├── usart_hmi_service             TJC 帧解析与命令编码
+└── adc_dac_loopback_service      可选 ADC/DAC 回环
         │
 Driver  │
-├── adc121s101                    TIM7 触发的 SPI2 RX DMA
-├── dac_output                    TIM6 触发的 DAC DMA
-├── ad9910                        SPI4 TX DMA 与寄存器编码
-└── ad9910_board                  AD9910 板级 GPIO 映射
+├── adc_internal                  ADC1_IN15 + TIM7 TRGO + ADC DMA
+├── tjc_uart_driver               USART1 Receive-to-Idle DMA
+└── dac_output                    可选 TIM6 + DAC DMA
 ```
 
-依赖方向保持为 `Application -> Service -> Driver -> HAL`。CubeMX 生成文件只在
-`USER CODE BEGIN/END` 区域接入 Application，业务代码不写入生成文件。
+依赖方向为 `Application -> Service -> Driver -> HAL`。CubeMX 生成文件只在
+`USER CODE BEGIN/END` 区域接入业务代码。
 
-旧 AD9910 独立演示已移动到 `Examples/AD9910/`，不参与当前固件构建。
+测量页协议由 `signal_hmi_app` 管理；当前
+`TJC_SCREEN_ENABLE_GENERATOR_CONTROL=0`，信号源控制代码不会参与编译。
 
-## 主循环与中断
+## 500 Hz 频率分辨率
 
-`Core/Src/main.c` 初始化 CubeMX 外设后调用：
+FFT 的频率栅格间隔为：
+
+```text
+Δf = Fs / N = 2,000,000 / 4096 = 488.28125 Hz
+```
+
+488.28 Hz 小于题目要求的 500 Hz，因此当前配置满足频率分辨率要求。分析器初始化
+时还会检查：
 
 ```c
-Signal_App_Init(&signal_app_config);
-
-while (1) {
-    Signal_App_Process();
-}
+sample_rate_hz <= WAVEFORM_ANALYZER_FFT_SIZE *
+                  WAVEFORM_ANALYZER_MAX_BIN_RESOLUTION_HZ
 ```
 
-主循环负责 AD9910 状态机、DMA 错误恢复、FFT、波形分析和应用状态更新。
-DMA/EXTI 中断只更新完成标志、缓冲区索引和计数器，不执行 FFT 或波形计算。
+如果后续在 CubeMX 中提高采样率或减小 FFT 点数，导致 `Δf > 500 Hz`，初始化会直接
+返回错误，避免生成参数不达标的固件。Hann 三点插值用于降低非整周期采样的栅栏
+误差，但验收时仍以 488.28 Hz 的物理栅格间隔作为分辨率依据。
 
-## ADC121S101 采集
+## 片内 ADC1 采集参数
 
 | 项目 | 当前配置 |
 | --- | --- |
-| SPI | SPI2，主机，Mode 0，16 bit，硬件 NSS Pulse |
-| SPI SCLK | 10.625 MHz |
-| 采样触发 | TIM7 Update DMA，PSC=9，ARR=15 |
-| 实际采样率 | 170 MHz / 10 / 16 = 1.0625 MSPS |
+| ADC 引脚 | PB0 / ADC1_IN15，单端 12 bit |
+| ADC 时钟 | 160 MHz / 4 = 40 MHz |
+| 采样时间 | 6.5 周期；单次转换总计约 19 ADC 周期 |
+| 采样触发 | TIM7 TRGO Update，PSC=9，ARR=7 |
+| 实际采样率 | 160 MHz / 10 / 8 = 2.000 MSPS |
 | DMA 缓冲区 | 2 x 4096 点，主 SRAM |
-| 有效数据 | `sample = rx & 0x0FFFU` |
-| FFT 分辨率 | 1,062,500 / 4096 = 259.4 Hz |
+| DMA | DMA1 Channel 1，Halfword，Circular，Very High |
+| 单块时间 | 4096 / 2 MHz = 2.048 ms |
+| FFT 分辨率 | 488.28 Hz |
 
-ADC 采集没有直接使用 `HAL_SPI_TransmitReceive_DMA()`。该 HAL API 会按 SPI
-时钟连续发送整块数据，无法让每个 16 bit 帧由 TIM7 均匀触发。当前实现使用：
+当前采集链路为：
 
-1. TIM7 Update DMA 每个采样周期向 SPI2 DR 写入一个 16 bit Dummy Word。
-2. SPI2 RX DMA 循环接收 8192 点，并在半满/全满事件切换 Ping-Pong 半区。
-3. 主循环复制最新完整半区并提取低 12 bit，再执行 FFT。
+1. TIM7 每 0.5 us 产生一次 TRGO Update，硬件触发 ADC1 规则组转换。
+2. ADC1 DMA 循环接收 8192 点，在半满/全满回调中只发布半区事件。
+3. 主循环复制最新 4096 点，再执行去直流、FFT 和测量计算。
 
-这是定时采样的专用实现，不是轮询。
+ADC 在首次启动前执行单端校准；ADC/DMA 错误只在回调中设置恢复标志，由主循环停止
+并重新启动采集。
 
-## AD9910 控制
+## 测量与标定
 
-AD9910 当前为单线只写接口，没有接入 SDO，因此 Driver 使用
-`HAL_SPI_Transmit_DMA()`。Service 通过异步状态机依次写寄存器并在主循环产生
-IO UPDATE，避免在中断中处理 GPIO 时序。
+`waveform_analyzer_service` 输出 ADC 码值域结果，
+`signal_measurement_service` 负责转换为物理量：
 
-Application 支持：
+- 仅在 10 kHz～500 kHz 搜索谱峰。
+- 从最多 6 个候选峰中筛选整数倍关系最一致的 1～3 条有效谱线。
+- 峰峰值使用 8 个最高/最低样点均值，降低偶发毛刺影响。
+- 真有效值按有效正弦分量 `sqrt(sum(Ui^2) / 2)` 计算。
+- 主循环每 20 ms 尝试分析最新完整块，全部耗时计算均不在中断内执行。
 
-- 单音模式：默认 1 MHz、100%、0 度。
-- RAM 波形模式：8 个可编辑预设，支持正弦、方波、三角波、上升/下降锯齿和复合波。
-- 数字斜坡：固定、单次扫频和连续往返扫频的底层 Service 能力。
-- 异步命令合并：写寄存器期间到达的新配置会保留到下一服务周期，不覆盖 DMA 缓冲区。
+默认标定只用于联调，按 3.3 V ADC 参考电压和 1 倍模拟前端增益换算。实机必须用
+标准信号源标定以下参数：
 
-单音和 RAM 回放默认同时编译：上电先请求单音，自动测试等待 1 秒后将 RAM
-preset 5 配置为 10 kHz 复合波并启动回放。产品固件可分别关闭两种输出能力。
+```c
+signal_measurement_calibration_t calibration = {
+    .input_mv_per_code = /* 模拟前端输入端每码对应的 mV */,
+    .peak_to_peak_gain = 1.0f,
+    .rms_gain = 1.0f,
+    .spectrum_gain = 1.0f,
+    .response_point_count = /* 频响标定点数 */,
+};
+```
 
-## 可选 DAC 回环
+未完成 10 kHz～500 kHz 多点标定前，编译通过不代表电压误差已经达到 ±5 mV。
 
-启用回环后，DAC1 CH1 使用 TIM6 + DMA 输出两个 4096 点半区。DAC 采样率由
-采集 Service 自动设置为 TIM7 的实际更新率，禁止在没有重采样器时使用不同的
-ADC/DAC 时钟。主循环先提交 DAC 数据，再执行 FFT，以降低实时回环延迟。
+## TJC 串口屏协议
+
+USART1 使用 115200 bit/s、8N1、DMA 收发。测量页 ID 为 0，页面需建立
+`va0`～`va11` 隐藏数值变量：
+
+| 变量 | 含义 | 单位 |
+| --- | --- | --- |
+| `page0.va0` | 信号有效标志 | 0/1 |
+| `page0.va1` | 峰峰值 | 0.1 mV |
+| `page0.va2` | 真有效值 | 0.1 mV |
+| `page0.va3` | 基频 | Hz |
+| `page0.va4` | 有效谱线数 | 条 |
+| `page0.va5/6` | 谱线 1 频率/幅值 | Hz / 0.1 mV |
+| `page0.va8/7` | 谱线 2 频率/幅值 | Hz / 0.1 mV |
+| `page0.va9/10` | 谱线 3 频率/幅值 | Hz / 0.1 mV |
+| `page0.va11` | 当前时域周期数 | 1/3 |
+
+最新 `22.h` 的绘图和键控组件映射为：
+
+| 组件 | ID | STM32 功能 |
+| --- | ---: | --- |
+| `w0` | 20 | 1/3 周期时域波形 |
+| `w1` | 40 | 正频率电压频谱 |
+| `bSnap` | 21 | 立即触发一轮绘图更新 |
+| `b0` | 41 | 选择显示 1 个完整周期 |
+| `b1` | 42 | 选择显示 3 个完整周期 |
+
+`b0`、`b1` 必须在 TJC 工程中开启“弹起事件发送组件 ID”。时域波形执行
+上升沿对齐、重采样和留边自动缩放；频谱按有效分量的频率位置和电压幅值相对比例绘制。
+固件自动交替刷新 `w0` 和 `w1`；按下 `bSnap` 可立即触发新一轮更新，但不是正常显示所必需。
+频谱横轴从 0 Hz 起，根据当前最高有效分量自动扩展并保留右侧余量，谱线使用 5 像素宽度，
+避免低频、最高频谱线被控件边框遮挡。
+透明传输流程为：
+
+```text
+sendme
+cle <组件ID>,0
+addt <组件ID>,0,512
+等待 FE FF FF FF
+发送 512 字节裸数据
+等待 FD FF FF FF
+```
 
 ## 构建
-
-需要 CMake、Ninja 和 `arm-none-eabi-gcc`。使用 STM32Cube VSCode 扩展时通常会
-自动提供工具链环境；独立 PowerShell 中需先把 ARM GNU Toolchain 的 `bin`
-目录加入 `PATH`。
 
 ```powershell
 cmake --preset Debug
@@ -108,76 +160,40 @@ cmake --preset Release
 cmake --build --preset Release
 ```
 
-功能选项：
-
 | CMake 选项 | 默认值 | 作用 |
 | --- | --- | --- |
 | `SIGNAL_ENABLE_ADC_DAC_LOOPBACK` | `OFF` | 编译并启用 ADC 到 DAC 回环 |
-| `SIGNAL_ENABLE_AD9910_AUTO_TEST` | `ON` | 启用 AD9910 上电 RAM 波形测试 |
-| `SIGNAL_ENABLE_AD9910_SINGLE_TONE` | `ON` | 启用 AD9910 单音模式 |
-| `SIGNAL_ENABLE_AD9910_RAM_PLAYBACK` | `ON` | 启用 AD9910 RAM 波形回放模式 |
 
-两个模式选项分别映射为代码宏
-`AD9910_SIGGEN_ENABLE_SINGLE_TONE` 和
-`AD9910_SIGGEN_ENABLE_RAM_PLAYBACK`：
+构建生成 `G474.elf`、`G474.hex`、`G474.bin` 和 `G474.map`。当前 Debug 构建占用：
 
-- 两者开启：上电请求默认单音，允许切换 RAM 回放。
-- 仅单音开启：RAM 模式和 RAM 配置 API 返回 `HAL_ERROR`，RAM 自动测试自动失效。
-- 仅 RAM 开启：上电直接请求默认 RAM preset 0，单音模式和配置 API 返回 `HAL_ERROR`。
-- 两者关闭：CMake 配置阶段报错，避免生成无输出能力的固件。
+| RAM | CCMRAM | FLASH |
+| ---: | ---: | ---: |
+| 48,432 / 98,304 B | 32,768 / 32,768 B | Debug 109,388 B；Release 79,032 B |
 
-示例：
+CCMRAM 专用于两个 4096 点浮点 FFT 工作缓冲区；DMA 缓冲区必须位于主 SRAM。
 
-```powershell
-cmake --preset Release `
-  -DSIGNAL_ENABLE_AD9910_SINGLE_TONE=ON `
-  -DSIGNAL_ENABLE_AD9910_RAM_PLAYBACK=OFF
-cmake --build --preset Release
-```
+## 硬件边界与验收重点
 
-构建会生成 `G474.elf`、`G474.hex`、`G474.bin` 和 `G474.map`。
+- 2 MSPS 对 500 kHz 每周期采集 4 点，已经脱离原 1 MSPS 的奈奎斯特端点问题。
+- PB0 是单极性 ADC 输入，只允许 `0～VDDA`。不能把以 0 V 为中心的双极性正弦直接
+  接入；联调时应把信号发生器 DC Offset 设置为约 1.65 V，或使用交流耦合加 1.65 V
+  偏置的模拟前端。软件会自动去除该直流偏置。
+- PB0 处严禁低于 VSSA 或高于 VDDA，否则会触发钳位并可能损坏 MCU。
+- `fJ >= 1 MHz` 可能在采样后混叠进 0～500 kHz，数字算法不能无条件恢复。
+  BNC 输入后必须设置模拟低通/抗混叠滤波器，并通过实测确定截止频率和阻带衰减。
+- 输入范围只有 50～250 mVpp，应配置低噪声、足够带宽的增益与偏置前端，并保留
+  50 Ω 端接方案，否则 ADC 量化噪声和信号源幅值定义会直接影响 ±5 mV 指标。
+- 题目每项要求 2 秒内完成；当前 2.048 ms 数据块和 20 ms 分析调度有充足的软件
+  时间裕量，最终仍需用 Release 固件检查 `adc_overrun_count == 0`。
+- `G474.ioc` 已移除 SPI2、SPI4、ADC121S101 和 AD9910 引脚配置，并加入
+  PB0/ADC1_IN15、TIM7 TRGO 与 DMA1 Channel 1。当前机器没有 CubeMX 可执行程序，
+  所以旧生成文件中的闲置 SPI 初始化仍保留；下次用 CubeMX 重新生成后会自动清理。
+- CMake 会检测 `Core/Inc/adc.h` 和 `Core/Src/adc.c`：当前缺少 CubeMX ADC 生成文件时
+  Driver 自行配置 ADC/MSP/IRQ；以后 CubeMX 生成这两个文件后会自动切换到生成句柄，
+  避免重复定义 ADC MSP 和 DMA1 Channel 1 中断。
 
-## 内存占用
+## 总结
 
-当前 GNU Arm 15.2.1 构建结果：
-
-| 配置 | RAM | CCMRAM | FLASH |
-| --- | ---: | ---: | ---: |
-| Debug，双模式开启 | 53,088 / 98,304 B | 32,768 / 32,768 B | 88,040 / 524,288 B |
-| Debug，仅单音 | 53,080 / 98,304 B | 32,768 / 32,768 B | 87,156 / 524,288 B |
-| Debug，仅 RAM | 53,088 / 98,304 B | 32,768 / 32,768 B | 88,040 / 524,288 B |
-| Release，双模式开启 | 53,104 / 98,304 B | 32,768 / 32,768 B | 71,800 / 524,288 B |
-| Debug，DAC 回环开启 | 69,512 / 98,304 B | 32,768 / 32,768 B | 90,852 / 524,288 B |
-
-CCMRAM 专用于两个 4096 点浮点 FFT 工作缓冲区，当前占满 32 KB。DMA 缓冲区
-全部位于主 SRAM，因为 STM32G474 DMA 不能访问 CCMRAM。新增 CCMRAM 对象会在
-链接阶段直接报溢出，不会静默侵占主栈。
-
-## 调试状态
-
-可通过以下只读状态入口观察运行情况：
-
-```c
-const signal_app_status_t *Signal_App_GetStatus(void);
-const ad9910_siggen_status_t *AD9910_SignalGenerator_GetStatus(void);
-const signal_acquisition_status_t *Signal_Acquisition_Service_GetStatus(void);
-const waveform_analyzer_result_t *Waveform_Analyzer_GetResult(void);
-```
-
-硬件验收时重点检查：
-
-- `adc_error_count == 0`
-- `adc_overrun_count == 0`
-- 开启回环时 `dac_underrun_count == 0`
-- 开启回环时 `dac_loopback_dropped_block_count == 0`
-- `signal_generator.app_error == AD9910_SIGGEN_ERROR_NONE`
-
-Debug 使用 `-O0`，不能代表 1.0625 MSPS 下的最终实时性能。吞吐验收应使用
-Release，并结合上述 overrun/drop 计数和示波器结果判断。
-
-## 当前边界
-
-- TJC 文件目前只有命令分发接口，尚未实现串口帧解析。
-- 本次重构已通过编译和静态检查，尚未代替板级烧录、示波器和频谱仪验收。
-- `ad9910_signal_generator_app` 仍使用少量 AD9910 编码常量生成 RAM Polar Word；
-  后续如需支持第二种 DDS，应把波形编码抽成独立 Service 接口。
+当前 PB0/ADC1_IN15 + 2 MSPS + 4096 点方案的频率分辨率为 488.28 Hz，可以满足
+500 Hz 要求；500 kHz 信号每周期有 4 个采样点。项目下一阶段的关键是完成 1.65 V
+偏置、模拟抗混叠前端和全频段电压标定。

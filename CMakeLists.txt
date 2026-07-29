@@ -19,28 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(SIGNAL_ENABLE_ADC_DAC_LOOPBACK
-       "Enable ADC121S101 to DAC ping-pong loopback" OFF)
-option(SIGNAL_ENABLE_AD9910_AUTO_TEST
-       "Enable the AD9910 RAM waveform boot self-test" ON)
-option(SIGNAL_ENABLE_AD9910_SINGLE_TONE
-       "Enable the AD9910 single-tone output mode" ON)
-option(SIGNAL_ENABLE_AD9910_RAM_PLAYBACK
-       "Enable the AD9910 RAM waveform playback mode" ON)
-
-if(NOT SIGNAL_ENABLE_AD9910_SINGLE_TONE AND
-   NOT SIGNAL_ENABLE_AD9910_RAM_PLAYBACK)
-    message(FATAL_ERROR
-        "At least one AD9910 output mode must be enabled")
-endif()
-
-set(SIGNAL_AD9910_AUTO_TEST_ENABLED
-    ${SIGNAL_ENABLE_AD9910_AUTO_TEST})
-if(SIGNAL_AD9910_AUTO_TEST_ENABLED AND
-   NOT SIGNAL_ENABLE_AD9910_RAM_PLAYBACK)
-    set(SIGNAL_AD9910_AUTO_TEST_ENABLED OFF)
-    message(STATUS
-        "AD9910 auto-test disabled because RAM playback is disabled")
-endif()
+       "Enable internal ADC1 to DAC ping-pong loopback" OFF)
 
 # Set the project name
 set(CMAKE_PROJECT_NAME G474)
@@ -54,6 +33,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 # Core project settings
 project(${CMAKE_PROJECT_NAME} LANGUAGES C ASM)
 message("Build type: " ${CMAKE_BUILD_TYPE})
+
+set(SIGNAL_ADC_USE_CUBEMX_GENERATED OFF)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/adc.h" AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/adc.c")
+    set(SIGNAL_ADC_USE_CUBEMX_GENERATED ON)
+endif()
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
@@ -78,12 +63,10 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    Modules/AD9910/ad9910.c
-    Modules/AD9910/ad9910_board.c
-    Modules/ADC/adc121s101.c
-    Services/ad9910_service.c
-    Services/ad9910_sweep_planner.c
+    Modules/ADC/adc_internal.c
+    Modules/HMI/tjc_uart_driver.c
     Services/signal_acquisition_service.c
+    Services/signal_measurement_service.c
     Services/usart_hmi_service.c
     Services/waveform_analyzer_service.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
@@ -93,10 +76,15 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_f32.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_init_f32.c
     App/signal_app.c
-    App/ad9910_signal_generator_app.c
-    App/one_hmi_ad9910_interface.c
-    App/tjc_ad9910_interface.c
+    App/signal_hmi_app.c
 )
+
+if(NOT SIGNAL_ADC_USE_CUBEMX_GENERATED)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+        Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.c
+        Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.c
+    )
+endif()
 
 if(SIGNAL_ENABLE_ADC_DAC_LOOPBACK)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE
@@ -105,17 +93,11 @@ if(SIGNAL_ENABLE_ADC_DAC_LOOPBACK)
     )
 endif()
 
-if(SIGNAL_AD9910_AUTO_TEST_ENABLED)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-        App/ad9910_auto_test_app.c
-    )
-endif()
-
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    Modules/AD9910
     Modules/DAC
     Modules/ADC
+    Modules/HMI
     Services/
     App
     Drivers/CMSIS/DSP/Include
@@ -125,6 +107,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
     ARM_MATH_CM4
+    SIGNAL_ADC_USE_CUBEMX_GENERATED=$<BOOL:${SIGNAL_ADC_USE_CUBEMX_GENERATED}>
     ARM_MATH_LOOPUNROLL
     ARM_DSP_CONFIG_TABLES
     ARM_FFT_ALLOW_TABLES
@@ -132,9 +115,6 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     ARM_TABLE_BITREVIDX_FLT_2048
     ARM_TABLE_TWIDDLECOEF_RFFT_F32_4096
     SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK=$<BOOL:${SIGNAL_ENABLE_ADC_DAC_LOOPBACK}>
-    SIGNAL_APP_ENABLE_AD9910_AUTO_TEST=$<BOOL:${SIGNAL_AD9910_AUTO_TEST_ENABLED}>
-    AD9910_SIGGEN_ENABLE_SINGLE_TONE=$<BOOL:${SIGNAL_ENABLE_AD9910_SINGLE_TONE}>
-    AD9910_SIGGEN_ENABLE_RAM_PLAYBACK=$<BOOL:${SIGNAL_ENABLE_AD9910_RAM_PLAYBACK}>
 )
 
 # Add linked libraries

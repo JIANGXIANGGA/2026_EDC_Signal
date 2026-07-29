@@ -57,38 +57,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define AD9910_SCLK_Pin GPIO_PIN_2
-#define AD9910_SCLK_GPIO_Port GPIOE
-#define AD9910_CSB_Pin GPIO_PIN_5
-#define AD9910_CSB_GPIO_Port GPIOB
-#define AD9910_SDIO_Pin GPIO_PIN_6
-#define AD9910_SDIO_GPIO_Port GPIOE
 #define WHILE_TIME_Pin GPIO_PIN_3
 #define WHILE_TIME_GPIO_Port GPIOA
-#define AD9910_PROFILE0_Pin GPIO_PIN_15
-#define AD9910_PROFILE0_GPIO_Port GPIOA
-#define ADC121_CS_Pin GPIO_PIN_12
-#define ADC121_CS_GPIO_Port GPIOB
-#define ADC121_SCK_Pin GPIO_PIN_13
-#define ADC121_SCK_GPIO_Port GPIOB
-#define ADC121_MISO_Pin GPIO_PIN_14
-#define ADC121_MISO_GPIO_Port GPIOB
-#define ADC121_MOSI_Pin GPIO_PIN_15
-#define ADC121_MOSI_GPIO_Port GPIOB
-#define AD9910_PROFILE2_Pin GPIO_PIN_9
-#define AD9910_PROFILE2_GPIO_Port GPIOC
+#define SIGNAL_ADC_IN_Pin GPIO_PIN_0
+#define SIGNAL_ADC_IN_GPIO_Port GPIOB
 #define RAM_SWITCH_Pin GPIO_PIN_1
 #define RAM_SWITCH_GPIO_Port GPIOD
-#define AD9910_DRHOLD_Pin GPIO_PIN_3
-#define AD9910_DRHOLD_GPIO_Port GPIOD
-#define AD9910_PROFILE1_Pin GPIO_PIN_4
-#define AD9910_PROFILE1_GPIO_Port GPIOD
-#define AD9910_IO_UPDATE_Pin GPIO_PIN_13
-#define AD9910_IO_UPDATE_GPIO_Port GPIOD
-#define AD9910_DROVER_Pin GPIO_PIN_15
-#define AD9910_DROVER_GPIO_Port GPIOD
-#define AD9910_DRCTL_Pin GPIO_PIN_9
-#define AD9910_DRCTL_GPIO_Port GPIOF
+#define TJC_TX_Pin GPIO_PIN_0
+#define TJC_TX_GPIO_Port GPIOE
+#define TJC_RX_Pin GPIO_PIN_1
+#define TJC_RX_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 /* USER CODE END Private defines */

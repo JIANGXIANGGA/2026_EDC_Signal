@@ -2,8 +2,11 @@
 
 #include <stddef.h>
 
-#include "adc121s101.h"
+#include "adc_internal.h"
+#include "signal_measurement_service.h"
 #include "waveform_analyzer_service.h"
+
+#define SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS 20U
 
 #if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
 #include "adc_dac_loopback_service.h"
@@ -11,9 +14,10 @@
 #endif
 
 static signal_acquisition_status_t g_signal_acquisition_status;
-static uint16_t g_signal_acquisition_block[ADC_INPUT_BLOCK_SIZE];
+static uint16_t g_signal_acquisition_block[ADC_INTERNAL_BLOCK_SIZE];
+static uint32_t g_signal_acquisition_next_analysis_ms;
 
-_Static_assert(ADC_INPUT_BLOCK_SIZE >= WAVEFORM_ANALYZER_FFT_SIZE,
+_Static_assert(ADC_INTERNAL_BLOCK_SIZE >= WAVEFORM_ANALYZER_FFT_SIZE,
                "ADC 采样块长度必须覆盖一次 FFT");
 
 static uint32_t signal_acquisition_get_timer_clock_hz(
@@ -54,20 +58,31 @@ static uint32_t signal_acquisition_get_timer_update_rate_hz(
                       divisor);
 }
 
+static uint8_t signal_acquisition_time_reached(uint32_t deadline_ms)
+{
+    return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
+}
+
 static void signal_acquisition_update_status(void)
 {
     const waveform_analyzer_result_t *fft_result =
         Waveform_Analyzer_GetResult();
+    const signal_measurement_result_t *measurement_result =
+        Signal_Measurement_Service_GetResult();
 
-    g_signal_acquisition_status.adc_running = ADC121S101_IsRunning();
+    g_signal_acquisition_status.adc_running = ADC_Internal_IsRunning();
     g_signal_acquisition_status.adc_half_complete_count =
-        ADC121S101_GetHalfCompleteCount();
+        ADC_Internal_GetHalfCompleteCount();
     g_signal_acquisition_status.adc_complete_count =
-        ADC121S101_GetCompleteCount();
+        ADC_Internal_GetCompleteCount();
     g_signal_acquisition_status.adc_error_count =
-        ADC121S101_GetErrorCount();
+        ADC_Internal_GetErrorCount();
     g_signal_acquisition_status.adc_overrun_count =
-        ADC121S101_GetOverrunCount();
+        ADC_Internal_GetOverrunCount();
+
+    if (measurement_result != NULL) {
+        g_signal_acquisition_status.measurement = *measurement_result;
+    }
 
 #if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
     g_signal_acquisition_status.dac_half_complete_count =
@@ -111,6 +126,11 @@ static void signal_acquisition_update_status(void)
     g_signal_acquisition_status.adc_last_max = fft_result->max_code;
     g_signal_acquisition_status.adc_last_average =
         fft_result->average_code;
+    if ((measurement_result != NULL) &&
+        (measurement_result->result_ready != 0U)) {
+        g_signal_acquisition_status.detected_frequency_hz =
+            measurement_result->fundamental_frequency_hz;
+    }
 }
 
 static HAL_StatusTypeDef signal_acquisition_set_error(
@@ -133,8 +153,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     g_signal_acquisition_status.waveform_type =
         WAVEFORM_ANALYZER_TYPE_UNKNOWN;
 
-    if ((config == NULL) || (config->adc_spi == NULL) ||
-        (config->adc_timer == NULL)) {
+    if ((config == NULL) || (config->adc_timer == NULL)) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
             HAL_ERROR);
@@ -159,7 +178,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
             HAL_ERROR);
     }
 
-    status = ADC_Input_Init(config->adc_spi, config->adc_timer);
+    status = ADC_Internal_Init(config->adc_timer);
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ADC_INIT,
@@ -170,6 +189,14 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ANALYZER_INIT,
+            status);
+    }
+
+    status = Signal_Measurement_Service_Init(
+        config->measurement_calibration);
+    if (status != HAL_OK) {
+        return signal_acquisition_set_error(
+            SIGNAL_ACQUISITION_ERROR_MEASUREMENT_INIT,
             status);
     }
 
@@ -184,7 +211,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     }
 #endif
 
-    status = ADC_Start();
+    status = ADC_Internal_Start();
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ADC_START,
@@ -194,6 +221,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     g_signal_acquisition_status.initialized = 1U;
     g_signal_acquisition_status.error = SIGNAL_ACQUISITION_ERROR_NONE;
     g_signal_acquisition_status.last_hal_status = HAL_OK;
+    g_signal_acquisition_next_analysis_ms = HAL_GetTick();
     signal_acquisition_update_status();
     return HAL_OK;
 }
@@ -208,26 +236,38 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Process(void)
             HAL_ERROR);
     }
 
-    status = ADC_Process();
+    status = ADC_Internal_Process();
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ADC_RUNTIME,
             status);
     }
 
-    if (ADC121S101_CopyLatestBlock(g_signal_acquisition_block,
-                                   ADC_INPUT_BLOCK_SIZE) != 0U) {
+    if ((signal_acquisition_time_reached(
+             g_signal_acquisition_next_analysis_ms) != 0U) &&
+        (ADC_Internal_CopyLatestBlock(g_signal_acquisition_block,
+                                      ADC_INTERNAL_BLOCK_SIZE) != 0U)) {
+        g_signal_acquisition_next_analysis_ms =
+            HAL_GetTick() + SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS;
 #if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
         /* 先交付实时回环数据，再执行耗时的 FFT。 */
         (void)ADC_DAC_Loopback_PushBlock(g_signal_acquisition_block,
-                                         ADC_INPUT_BLOCK_SIZE);
+                                         ADC_INTERNAL_BLOCK_SIZE);
 #endif
 
         status = Waveform_Analyzer_ProcessBlock(g_signal_acquisition_block,
-                                                ADC_INPUT_BLOCK_SIZE);
+                                                ADC_INTERNAL_BLOCK_SIZE);
         if (status != HAL_OK) {
             return signal_acquisition_set_error(
                 SIGNAL_ACQUISITION_ERROR_ANALYZER_RUNTIME,
+                status);
+        }
+
+        status = Signal_Measurement_Service_Process(
+            Waveform_Analyzer_GetResult());
+        if (status != HAL_OK) {
+            return signal_acquisition_set_error(
+                SIGNAL_ACQUISITION_ERROR_MEASUREMENT_RUNTIME,
                 status);
         }
 
@@ -238,6 +278,23 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Process(void)
     g_signal_acquisition_status.last_hal_status = HAL_OK;
     signal_acquisition_update_status();
     return HAL_OK;
+}
+
+uint8_t Signal_Acquisition_Service_GetLatestBlock(
+    const uint16_t **samples,
+    uint32_t *length,
+    uint32_t *sequence)
+{
+    if ((samples == NULL) || (length == NULL) || (sequence == NULL) ||
+        (g_signal_acquisition_status.initialized == 0U) ||
+        (g_signal_acquisition_status.adc_block_count == 0U)) {
+        return 0U;
+    }
+
+    *samples = g_signal_acquisition_block;
+    *length = ADC_INTERNAL_BLOCK_SIZE;
+    *sequence = g_signal_acquisition_status.adc_block_count;
+    return 1U;
 }
 
 const signal_acquisition_status_t *Signal_Acquisition_Service_GetStatus(void)
