@@ -33,7 +33,7 @@
 #define ONE_HMI_SPECTRUM_RIGHT_MARGIN_POINTS 6U
 #define ONE_HMI_SPECTRUM_LINE_HALF_WIDTH_POINTS 2U
 #define ONE_HMI_SPECTRUM_RIGHT_HEADROOM_RATIO 1.10f
-#define ONE_HMI_MEASUREMENT_FIELD_COUNT 12U
+#define ONE_HMI_MEASUREMENT_FIELD_COUNT 14U
 #define ONE_HMI_MEASUREMENT_REFRESH_MS 200U
 #define ONE_HMI_PLOT_SWITCH_DELAY_MS 20U
 
@@ -114,6 +114,8 @@ static const char *const
         TJC_SCREEN_MEAS_COMPONENT3_HZ,
         TJC_SCREEN_MEAS_COMPONENT3_AMPLITUDE,
         TJC_SCREEN_MEAS_WAVEFORM_CYCLES,
+        TJC_SCREEN_MEAS_COMPONENT2_ORDER,
+        TJC_SCREEN_MEAS_COMPONENT3_ORDER,
 };
 
 static uint8_t one_hmi_time_reached(uint32_t deadline_ms)
@@ -541,6 +543,12 @@ static int32_t one_hmi_measurement_field_value(uint8_t field_index)
         return measurement->component_count;
     case 11U:
         return g_one_hmi.status.waveform_cycles;
+    case 12U:
+    case 13U:
+        component_index = (uint8_t)(field_index - 11U);
+        return (measurement->components[component_index].valid != 0U) ?
+                   measurement->components[component_index].harmonic_order :
+                   0;
     default:
         break;
     }
