@@ -148,11 +148,7 @@ static void waveform_analyzer_find_spectrum_peaks(void)
                                      &amplitude_code) == 0U)) {
             continue;
         }
-        if ((frequency_hz < FFT_MIN_FREQUENCY_HZ) ||
-            (frequency_hz > FFT_MAX_FREQUENCY_HZ)) {
-            continue;
-        }
-
+        /* 整数 bin 已限定搜索范围，不再丢弃边界 bin 的插值结果。 */
         waveform_analyzer_insert_peak(bin, frequency_hz, amplitude_code);
     }
 
