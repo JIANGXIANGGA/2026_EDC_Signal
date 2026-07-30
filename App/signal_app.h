@@ -19,8 +19,6 @@ typedef enum {
 typedef struct {
     TIM_HandleTypeDef *adc_timer;
     UART_HandleTypeDef *hmi_uart;
-    DAC_HandleTypeDef *dac;
-    TIM_HandleTypeDef *dac_timer;
     const signal_measurement_calibration_t *measurement_calibration;
 } signal_app_config_t;
 

@@ -9,16 +9,7 @@
 #include "usart_hmi_service.h"
 #include "waveform_analyzer_service.h"
 
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-#include "ad9910_signal_generator_app.h"
-#include "tjc_ad9910_interface.h"
-#endif
-
-#define ONE_HMI_VAR_COUNT 7U
-#define ONE_HMI_MAX_AMPLITUDE_PERCENT 100U
-#define ONE_HMI_QUERY_TIMEOUT_MS 200U
-#define ONE_HMI_STARTUP_SYNC_DELAY_MS 800U
-#define ONE_HMI_PERIODIC_SYNC_MS 500U
+#define ONE_HMI_STARTUP_DELAY_MS 800U
 #define ONE_HMI_LINK_TIMEOUT_MS 2000U
 #define ONE_HMI_RX_TRANSFER_BUFFER_SIZE 64U
 #define ONE_HMI_WAVEFORM_REFRESH_MS 250U
@@ -47,30 +38,7 @@ _Static_assert((ONE_HMI_SPECTRUM_LEFT_MARGIN_POINTS +
                    TJC_SCREEN_PLOT_POINT_COUNT,
                "TJC spectrum horizontal margins are too large");
 
-typedef enum {
-    ONE_HMI_VAR_WAVEFORM = 0,
-    ONE_HMI_VAR_AMPLITUDE,
-    ONE_HMI_VAR_PHASE,
-    ONE_HMI_VAR_FREQUENCY,
-    ONE_HMI_VAR_MODE,
-    ONE_HMI_VAR_PROFILE,
-    ONE_HMI_VAR_RUN_FLAG
-} one_hmi_var_index_t;
-
 typedef struct {
-    const char *object_name;
-    int32_t value;
-} one_hmi_variable_t;
-
-typedef struct {
-    one_hmi_variable_t variables[ONE_HMI_VAR_COUNT];
-    uint8_t pending_sync;
-    uint8_t active_query;
-    uint8_t restart_sync_pending;
-    uint8_t applied_snapshot_valid;
-    uint8_t query_index;
-    uint32_t query_deadline_ms;
-    uint32_t next_sync_ms;
     uint32_t observed_rx_restart_count;
     uint32_t observed_rx_dropped_count;
     uint32_t waveform_deadline_ms;
@@ -88,16 +56,6 @@ typedef struct {
 } one_hmi_context_t;
 
 static one_hmi_context_t g_one_hmi;
-
-static const char *const g_one_hmi_variable_names[ONE_HMI_VAR_COUNT] = {
-    TJC_SCREEN_GEN_WAVEFORM,
-    TJC_SCREEN_GEN_AMPLITUDE_PERCENT,
-    TJC_SCREEN_GEN_PHASE_DEGREES,
-    TJC_SCREEN_GEN_FREQUENCY_HZ,
-    TJC_SCREEN_GEN_MODE,
-    TJC_SCREEN_GEN_RAM_PRESET,
-    TJC_SCREEN_GEN_RUN_FLAG,
-};
 
 /* 页面 0 隐藏数值变量协议：幅值均以 0.1 mV 为单位。 */
 static const char *const
@@ -121,11 +79,6 @@ static const char *const
 static uint8_t one_hmi_time_reached(uint32_t deadline_ms)
 {
     return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
-}
-
-static void one_hmi_schedule_next_sync(uint32_t delay_ms)
-{
-    g_one_hmi.next_sync_ms = HAL_GetTick() + delay_ms;
 }
 
 static void one_hmi_waveform_set_state(one_hmi_waveform_state_t state)
@@ -567,46 +520,6 @@ static int32_t one_hmi_measurement_field_value(uint8_t field_index)
         measurement->components[component_index].amplitude_mv * 10.0f);
 }
 
-#if TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST
-static void one_hmi_measurement_build_test_snapshot(void)
-{
-    signal_measurement_result_t *measurement =
-        &g_one_hmi.measurement_snapshot;
-    uint32_t sequence =
-        g_one_hmi.status.measurement_last_sequence + 1U;
-
-    if (sequence == 0U) {
-        sequence = 1U;
-    }
-
-    *measurement = (signal_measurement_result_t){0};
-    measurement->initialized = 1U;
-    measurement->result_ready = 1U;
-    measurement->signal_valid = 1U;
-    measurement->component_count = SIGNAL_MEASUREMENT_COMPONENT_COUNT;
-    measurement->measurement_count = sequence;
-    measurement->peak_to_peak_mv = 600.0f;
-    measurement->true_rms_mv = 212.1f;
-    measurement->raw_rms_mv = 212.1f;
-    measurement->fundamental_frequency_hz = 10000.0f;
-
-    measurement->components[0].valid = 1U;
-    measurement->components[0].harmonic_order = 1U;
-    measurement->components[0].frequency_hz = 10000.0f;
-    measurement->components[0].amplitude_mv = 100.0f;
-
-    measurement->components[1].valid = 1U;
-    measurement->components[1].harmonic_order = 2U;
-    measurement->components[1].frequency_hz = 20000.0f;
-    measurement->components[1].amplitude_mv = 200.0f;
-
-    measurement->components[2].valid = 1U;
-    measurement->components[2].harmonic_order = 3U;
-    measurement->components[2].frequency_hz = 30000.0f;
-    measurement->components[2].amplitude_mv = 300.0f;
-}
-#endif
-
 static HAL_StatusTypeDef one_hmi_measurement_publish_process(void)
 {
     const signal_measurement_result_t *measurement;
@@ -638,21 +551,14 @@ static HAL_StatusTypeDef one_hmi_measurement_publish_process(void)
         return status;
     }
 
-    if ((g_one_hmi.pending_sync != 0U) ||
-        (g_one_hmi.active_query != 0U) ||
-        (g_one_hmi.status.waveform_state !=
+    if ((g_one_hmi.status.waveform_state !=
          ONE_HMI_WAVEFORM_STATE_IDLE) ||
         (one_hmi_time_reached(
              g_one_hmi.measurement_next_refresh_ms) == 0U)) {
         return HAL_OK;
     }
 
-#if TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST
-    one_hmi_measurement_build_test_snapshot();
-    measurement = &g_one_hmi.measurement_snapshot;
-#else
     measurement = Signal_Measurement_Service_GetResult();
-#endif
     if ((measurement == NULL) || (measurement->result_ready == 0U) ||
         (measurement->measurement_count ==
          g_one_hmi.status.measurement_last_sequence)) {
@@ -668,26 +574,6 @@ static HAL_StatusTypeDef one_hmi_measurement_publish_process(void)
     return HAL_OK;
 }
 
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-static uint8_t one_hmi_mode_is_valid(int32_t mode)
-{
-    return ((mode == ONE_HMI_MODE_SINGLE) ||
-            (mode == ONE_HMI_MODE_RAM) ||
-            (mode == ONE_HMI_MODE_SWEEP) ||
-            (mode == ONE_HMI_MODE_PROFILE)) ?
-               1U :
-               0U;
-}
-
-static uint8_t one_hmi_waveform_is_valid(int32_t waveform)
-{
-    return ((waveform >= ONE_HMI_WAVE_SINE) &&
-            (waveform <= ONE_HMI_WAVE_SAW)) ?
-               1U :
-               0U;
-}
-#endif
-
 static HAL_StatusTypeDef one_hmi_send_bytes(const uint8_t *data,
                                              uint16_t length,
                                              void *user_context)
@@ -695,291 +581,6 @@ static HAL_StatusTypeDef one_hmi_send_bytes(const uint8_t *data,
     (void)user_context;
     return TJC_UART_Driver_Transmit(data, length);
 }
-
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-static uint8_t one_hmi_u8_clamp(int32_t value, uint8_t max_value)
-{
-    if (value <= 0) {
-        return 0U;
-    }
-    if (value > (int32_t)max_value) {
-        return max_value;
-    }
-
-    return (uint8_t)value;
-}
-
-static uint16_t one_hmi_phase_clamp(int32_t value)
-{
-    if (value <= 0) {
-        return 0U;
-    }
-    if (value > (int32_t)AD9910_MAX_PHASE_DEGREES) {
-        return AD9910_MAX_PHASE_DEGREES;
-    }
-
-    return (uint16_t)value;
-}
-
-static uint32_t one_hmi_frequency_clamp(int32_t value)
-{
-    if (value <= 0) {
-        return 1U;
-    }
-    if ((uint32_t)value > AD9910_MAX_FREQUENCY_HZ) {
-        return AD9910_MAX_FREQUENCY_HZ;
-    }
-
-    return (uint32_t)value;
-}
-
-static ad9910_siggen_waveform_t one_hmi_build_waveform(int32_t value)
-{
-    switch (value) {
-    case ONE_HMI_WAVE_TRIANGLE:
-        return AD9910_SIGGEN_WAVEFORM_TRIANGLE;
-
-    case ONE_HMI_WAVE_SQUARE:
-        return AD9910_SIGGEN_WAVEFORM_SQUARE;
-
-    case ONE_HMI_WAVE_SAW:
-        return AD9910_SIGGEN_WAVEFORM_SAW_RISE;
-
-    case ONE_HMI_WAVE_SINE:
-    default:
-        return AD9910_SIGGEN_WAVEFORM_SINE;
-    }
-}
-
-static HAL_StatusTypeDef one_hmi_dispatch_command(
-    const ad9910_siggen_command_t *command)
-{
-    HAL_StatusTypeDef status = TJC_AD9910_Interface_Dispatch(command);
-
-    g_one_hmi.status.last_hal_status = status;
-    if (status != HAL_OK) {
-        g_one_hmi.status.error = ONE_HMI_ERROR_AD9910_COMMAND;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-    }
-
-    return status;
-}
-
-static HAL_StatusTypeDef one_hmi_apply_single_tone(
-    const ad9910_siggen_tone_param_t *tone)
-{
-    ad9910_siggen_command_t command;
-    HAL_StatusTypeDef status;
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SET_SINGLE_TONE;
-    command.tone = *tone;
-    status = one_hmi_dispatch_command(&command);
-    if (status != HAL_OK) {
-        return status;
-    }
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SET_MODE;
-    command.mode = AD9910_SIGGEN_MODE_SINGLE_TONE;
-    return one_hmi_dispatch_command(&command);
-}
-
-static HAL_StatusTypeDef one_hmi_apply_ram_waveform(
-    const ad9910_siggen_tone_param_t *tone,
-    ad9910_siggen_waveform_t waveform,
-    uint8_t profile_index)
-{
-    ad9910_siggen_command_t command;
-    HAL_StatusTypeDef status;
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SET_RAM_PRESET_TONE;
-    command.ram_preset_index = profile_index;
-    command.tone = *tone;
-    status = one_hmi_dispatch_command(&command);
-    if (status != HAL_OK) {
-        return status;
-    }
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SET_RAM_PRESET_WAVEFORM;
-    command.ram_preset_index = profile_index;
-    command.waveform = waveform;
-    status = one_hmi_dispatch_command(&command);
-    if (status != HAL_OK) {
-        return status;
-    }
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SELECT_RAM_PRESET;
-    command.ram_preset_index = profile_index;
-    status = one_hmi_dispatch_command(&command);
-    if (status != HAL_OK) {
-        return status;
-    }
-
-    command = (ad9910_siggen_command_t){0};
-    command.type = AD9910_SIGGEN_COMMAND_SET_MODE;
-    command.mode = AD9910_SIGGEN_MODE_RAM_WAVEFORM;
-    return one_hmi_dispatch_command(&command);
-}
-
-static HAL_StatusTypeDef one_hmi_apply_variables(void)
-{
-    const int32_t waveform_value =
-        g_one_hmi.variables[ONE_HMI_VAR_WAVEFORM].value;
-    const int32_t mode_value = g_one_hmi.variables[ONE_HMI_VAR_MODE].value;
-    const int32_t profile_value =
-        g_one_hmi.variables[ONE_HMI_VAR_PROFILE].value;
-    const ad9910_siggen_waveform_t waveform =
-        one_hmi_build_waveform(waveform_value);
-    const uint8_t profile_index =
-        one_hmi_u8_clamp(profile_value,
-                         (uint8_t)(AD9910_SIGGEN_RAM_PRESET_COUNT - 1U));
-    const uint8_t run_flag =
-        one_hmi_u8_clamp(g_one_hmi.variables[ONE_HMI_VAR_RUN_FLAG].value,
-                         1U);
-    ad9910_siggen_tone_param_t tone;
-    HAL_StatusTypeDef status;
-    uint8_t values_changed;
-    uint8_t use_ram;
-
-    if ((one_hmi_mode_is_valid(mode_value) == 0U) ||
-        (one_hmi_waveform_is_valid(waveform_value) == 0U)) {
-        g_one_hmi.status.error = ONE_HMI_ERROR_INVALID_VALUE;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-        return HAL_ERROR;
-    }
-
-    use_ram = ((mode_value == ONE_HMI_MODE_RAM) ||
-               (mode_value == ONE_HMI_MODE_PROFILE) ||
-               (waveform != AD9910_SIGGEN_WAVEFORM_SINE)) ?
-                  1U :
-                  0U;
-
-    tone.frequency_hz = one_hmi_frequency_clamp(
-        g_one_hmi.variables[ONE_HMI_VAR_FREQUENCY].value);
-    if ((use_ram != 0U) &&
-        (tone.frequency_hz > AD9910_SIGGEN_RAM_MAX_WAVE_FREQUENCY_HZ)) {
-        tone.frequency_hz = AD9910_SIGGEN_RAM_MAX_WAVE_FREQUENCY_HZ;
-    }
-    tone.amplitude_percent = one_hmi_u8_clamp(
-        g_one_hmi.variables[ONE_HMI_VAR_AMPLITUDE].value,
-        ONE_HMI_MAX_AMPLITUDE_PERCENT);
-    tone.phase_degrees = one_hmi_phase_clamp(
-        g_one_hmi.variables[ONE_HMI_VAR_PHASE].value);
-
-    values_changed = ((g_one_hmi.applied_snapshot_valid == 0U) ||
-                      (g_one_hmi.status.frequency_hz != tone.frequency_hz) ||
-                      (g_one_hmi.status.amplitude_percent !=
-                       tone.amplitude_percent) ||
-                      (g_one_hmi.status.phase_degrees !=
-                       tone.phase_degrees) ||
-                      (g_one_hmi.status.waveform !=
-                       (one_hmi_wave_t)waveform_value) ||
-                      (g_one_hmi.status.mode !=
-                       (one_hmi_mode_t)mode_value) ||
-                      (g_one_hmi.status.profile_index != profile_index) ||
-                      (g_one_hmi.status.run_flag != run_flag)) ?
-                         1U :
-                         0U;
-
-    g_one_hmi.status.frequency_hz = tone.frequency_hz;
-    g_one_hmi.status.amplitude_percent = tone.amplitude_percent;
-    g_one_hmi.status.phase_degrees = tone.phase_degrees;
-    g_one_hmi.status.waveform = (one_hmi_wave_t)one_hmi_u8_clamp(
-        waveform_value,
-        ONE_HMI_WAVE_SAW);
-    g_one_hmi.status.mode = (one_hmi_mode_t)mode_value;
-    g_one_hmi.status.profile_index = profile_index;
-    g_one_hmi.status.run_flag = run_flag;
-
-    if (mode_value == ONE_HMI_MODE_SWEEP) {
-        g_one_hmi.status.error = ONE_HMI_ERROR_SWEEP_NOT_SUPPORTED;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-        return HAL_ERROR;
-    }
-
-    if (values_changed == 0U) {
-        g_one_hmi.status.error = ONE_HMI_ERROR_NONE;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_READY;
-        g_one_hmi.status.sync_count++;
-        return HAL_OK;
-    }
-
-    /* run_flag=0 时保留页面幅值，只向 AD9910 下发 0% 实现静音。 */
-    if (run_flag == 0U) {
-        tone.amplitude_percent = 0U;
-    }
-
-    if (use_ram != 0U) {
-        status = one_hmi_apply_ram_waveform(&tone, waveform, profile_index);
-    } else {
-        status = one_hmi_apply_single_tone(&tone);
-    }
-
-    if (status == HAL_OK) {
-        g_one_hmi.applied_snapshot_valid = 1U;
-        g_one_hmi.status.error = ONE_HMI_ERROR_NONE;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_READY;
-        g_one_hmi.status.sync_count++;
-    }
-
-    return status;
-}
-
-static HAL_StatusTypeDef one_hmi_start_next_query(void)
-{
-    const char *object_name;
-    HAL_StatusTypeDef status;
-
-    if (g_one_hmi.query_index >= ONE_HMI_VAR_COUNT) {
-        const uint8_t restart_sync = g_one_hmi.restart_sync_pending;
-        HAL_StatusTypeDef apply_status;
-
-        g_one_hmi.pending_sync = 0U;
-        g_one_hmi.active_query = 0U;
-        g_one_hmi.restart_sync_pending = 0U;
-        apply_status = one_hmi_apply_variables();
-        if (restart_sync != 0U) {
-            g_one_hmi.pending_sync = 1U;
-            g_one_hmi.query_index = 0U;
-        }
-        one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-        return apply_status;
-    }
-
-    object_name = g_one_hmi.variables[g_one_hmi.query_index].object_name;
-    status = Usart_HMI_Service_GetProperty(object_name, "val");
-    g_one_hmi.status.last_hal_status = status;
-    if (status == HAL_OK) {
-        g_one_hmi.active_query = 1U;
-        g_one_hmi.query_deadline_ms =
-            HAL_GetTick() + ONE_HMI_QUERY_TIMEOUT_MS;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_QUERYING;
-    } else if (status != HAL_BUSY) {
-        g_one_hmi.status.error = ONE_HMI_ERROR_HMI_BUSY;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-        one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-    }
-
-    return status;
-}
-
-static void one_hmi_handle_number(uint32_t value)
-{
-    if ((g_one_hmi.active_query == 0U) ||
-        (g_one_hmi.query_index >= ONE_HMI_VAR_COUNT)) {
-        g_one_hmi.status.ignored_number_count++;
-        return;
-    }
-
-    g_one_hmi.variables[g_one_hmi.query_index].value = (int32_t)value;
-    g_one_hmi.query_index++;
-    g_one_hmi.active_query = 0U;
-}
-#endif
 
 static void one_hmi_waveform_handle_current_page(uint8_t page_id)
 {
@@ -1055,22 +656,6 @@ static void one_hmi_waveform_handle_finished(void)
     }
 }
 
-static uint8_t one_hmi_waveform_cancel_for_sync(void)
-{
-    switch (g_one_hmi.status.waveform_state) {
-    case ONE_HMI_WAVEFORM_STATE_REQUEST_PAGE:
-    case ONE_HMI_WAVEFORM_STATE_WAIT_PAGE:
-    case ONE_HMI_WAVEFORM_STATE_CLEAR:
-    case ONE_HMI_WAVEFORM_STATE_BEGIN_TRANSFER:
-        one_hmi_waveform_set_state(ONE_HMI_WAVEFORM_STATE_IDLE);
-        one_hmi_waveform_schedule_next();
-        return 1U;
-
-    default:
-        return 0U;
-    }
-}
-
 static HAL_StatusTypeDef one_hmi_waveform_process(void)
 {
     HAL_StatusTypeDef status;
@@ -1085,9 +670,7 @@ static HAL_StatusTypeDef one_hmi_waveform_process(void)
             (g_one_hmi.waveform_snapshot_requested == 0U)) {
             return HAL_OK;
         }
-        if ((g_one_hmi.pending_sync != 0U) ||
-            (g_one_hmi.active_query != 0U) ||
-            (g_one_hmi.measurement_publish_active != 0U) ||
+        if ((g_one_hmi.measurement_publish_active != 0U) ||
             (one_hmi_time_reached(
                  g_one_hmi.waveform_next_refresh_ms) == 0U)) {
             return HAL_OK;
@@ -1102,10 +685,6 @@ static HAL_StatusTypeDef one_hmi_waveform_process(void)
         return HAL_OK;
 
     case ONE_HMI_WAVEFORM_STATE_REQUEST_PAGE:
-        if (g_one_hmi.pending_sync != 0U) {
-            (void)one_hmi_waveform_cancel_for_sync();
-            return HAL_OK;
-        }
         if (one_hmi_time_reached(g_one_hmi.waveform_deadline_ms) != 0U) {
             return one_hmi_waveform_fail(HAL_TIMEOUT);
         }
@@ -1120,20 +699,12 @@ static HAL_StatusTypeDef one_hmi_waveform_process(void)
         return HAL_OK;
 
     case ONE_HMI_WAVEFORM_STATE_WAIT_PAGE:
-        if (g_one_hmi.pending_sync != 0U) {
-            (void)one_hmi_waveform_cancel_for_sync();
-            return HAL_OK;
-        }
         if (one_hmi_time_reached(g_one_hmi.waveform_deadline_ms) != 0U) {
             return one_hmi_waveform_fail(HAL_TIMEOUT);
         }
         return HAL_OK;
 
     case ONE_HMI_WAVEFORM_STATE_CLEAR:
-        if (g_one_hmi.pending_sync != 0U) {
-            (void)one_hmi_waveform_cancel_for_sync();
-            return HAL_OK;
-        }
         if (one_hmi_time_reached(g_one_hmi.waveform_deadline_ms) != 0U) {
             return one_hmi_waveform_fail(HAL_TIMEOUT);
         }
@@ -1149,10 +720,6 @@ static HAL_StatusTypeDef one_hmi_waveform_process(void)
         return HAL_OK;
 
     case ONE_HMI_WAVEFORM_STATE_BEGIN_TRANSFER:
-        if (g_one_hmi.pending_sync != 0U) {
-            (void)one_hmi_waveform_cancel_for_sync();
-            return HAL_OK;
-        }
         if (one_hmi_time_reached(g_one_hmi.waveform_deadline_ms) != 0U) {
             return one_hmi_waveform_fail(HAL_TIMEOUT);
         }
@@ -1235,12 +802,6 @@ static void one_hmi_handle_event(const usart_hmi_event_t *event)
                     }
                 }
             }
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-            else if (event->data.touch.page_id ==
-                     TJC_SCREEN_GENERATOR_PAGE_ID) {
-                (void)Signal_HMI_App_RequestSync();
-            }
-#endif
         }
         break;
 
@@ -1251,17 +812,11 @@ static void one_hmi_handle_event(const usart_hmi_event_t *event)
 
     case USART_HMI_EVENT_STARTUP:
         g_one_hmi.status.startup_count++;
-        g_one_hmi.applied_snapshot_valid = 0U;
         one_hmi_waveform_reset();
-        (void)Signal_HMI_App_RequestSync();
         break;
 
     case USART_HMI_EVENT_NUMBER:
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-        one_hmi_handle_number(event->data.number.value);
-#else
         g_one_hmi.status.ignored_number_count++;
-#endif
         break;
 
     case USART_HMI_EVENT_RETURN_STATUS:
@@ -1269,16 +824,6 @@ static void one_hmi_handle_event(const usart_hmi_event_t *event)
             event->data.return_status.code;
         if (event->data.return_status.code != 0x01U) {
             g_one_hmi.status.return_status_error_count++;
-            if (g_one_hmi.active_query != 0U) {
-                g_one_hmi.pending_sync = 0U;
-                g_one_hmi.active_query = 0U;
-                g_one_hmi.restart_sync_pending = 0U;
-                g_one_hmi.query_index = 0U;
-                g_one_hmi.status.error = ONE_HMI_ERROR_HMI_RESPONSE;
-                g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-                g_one_hmi.status.last_hal_status = HAL_ERROR;
-                one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-            }
         }
         break;
 
@@ -1309,36 +854,20 @@ HAL_StatusTypeDef Signal_HMI_App_Init(UART_HandleTypeDef *uart)
         return HAL_ERROR;
     }
 
-    for (uint8_t index = 0U; index < ONE_HMI_VAR_COUNT; ++index) {
-        g_one_hmi.variables[index].object_name =
-            g_one_hmi_variable_names[index];
-        g_one_hmi.variables[index].value = 0;
-    }
-
-    g_one_hmi.pending_sync = 0U;
-    g_one_hmi.active_query = 0U;
-    g_one_hmi.restart_sync_pending = 0U;
-    g_one_hmi.applied_snapshot_valid = 0U;
-    g_one_hmi.query_index = 0U;
-    g_one_hmi.query_deadline_ms = 0U;
-    one_hmi_schedule_next_sync(ONE_HMI_STARTUP_SYNC_DELAY_MS);
+    g_one_hmi = (one_hmi_context_t){0};
     g_one_hmi.observed_rx_restart_count = 0U;
     g_one_hmi.observed_rx_dropped_count = 0U;
-    g_one_hmi.status = (signal_hmi_status_t){0};
-    g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_IDLE;
     g_one_hmi.status.error = ONE_HMI_ERROR_NONE;
     g_one_hmi.status.last_hal_status = HAL_OK;
     g_one_hmi.status.waveform_last_hal_status = HAL_OK;
     g_one_hmi.status.waveform_cycles = 3U;
-    g_one_hmi.status.measurement_self_test_active =
-        TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST;
     g_one_hmi.measurement_publish_active = 0U;
     g_one_hmi.measurement_field_index = 0U;
     g_one_hmi.measurement_pending_sequence = 0U;
     g_one_hmi.measurement_snapshot =
         (signal_measurement_result_t){0};
     g_one_hmi.measurement_next_refresh_ms =
-        HAL_GetTick() + ONE_HMI_STARTUP_SYNC_DELAY_MS;
+        HAL_GetTick() + ONE_HMI_STARTUP_DELAY_MS;
     one_hmi_waveform_reset();
 
     status = Usart_HMI_Service_Init(&service_config);
@@ -1347,7 +876,6 @@ HAL_StatusTypeDef Signal_HMI_App_Init(UART_HandleTypeDef *uart)
     }
     if (status != HAL_OK) {
         g_one_hmi.status.error = ONE_HMI_ERROR_TRANSPORT;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
         g_one_hmi.status.last_hal_status = status;
         return status;
     }
@@ -1367,7 +895,6 @@ HAL_StatusTypeDef Signal_HMI_App_Process(void)
     result = TJC_UART_Driver_Process();
     if (result != HAL_OK) {
         g_one_hmi.status.error = ONE_HMI_ERROR_TRANSPORT;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
         g_one_hmi.status.last_hal_status = result;
         g_one_hmi.status.transport_error_count++;
     }
@@ -1382,7 +909,6 @@ HAL_StatusTypeDef Signal_HMI_App_Process(void)
             status = Usart_HMI_Service_PushRxBytes(rx_buffer, rx_length);
             if (status != HAL_OK) {
                 g_one_hmi.status.error = ONE_HMI_ERROR_TRANSPORT;
-                g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
                 g_one_hmi.status.last_hal_status = status;
                 g_one_hmi.status.rx_push_error_count++;
                 result = status;
@@ -1401,16 +927,10 @@ HAL_StatusTypeDef Signal_HMI_App_Process(void)
         g_one_hmi.observed_rx_dropped_count =
             driver_status->rx_bytes_dropped;
         Usart_HMI_Service_ResetRx();
-        g_one_hmi.pending_sync = 1U;
-        g_one_hmi.active_query = 0U;
-        g_one_hmi.restart_sync_pending = 0U;
-        g_one_hmi.applied_snapshot_valid = 0U;
-        g_one_hmi.query_index = 0U;
         g_one_hmi.measurement_publish_active = 0U;
         one_hmi_measurement_schedule_next();
         one_hmi_waveform_reset();
         g_one_hmi.status.transport_error_count++;
-        (void)Signal_HMI_App_RequestSync();
     }
 
     Usart_HMI_Service_Process();
@@ -1418,51 +938,11 @@ HAL_StatusTypeDef Signal_HMI_App_Process(void)
         one_hmi_handle_event(&event);
     }
 
-    if ((g_one_hmi.active_query != 0U) &&
-        (one_hmi_time_reached(g_one_hmi.query_deadline_ms) != 0U)) {
-        g_one_hmi.pending_sync = g_one_hmi.restart_sync_pending;
-        g_one_hmi.active_query = 0U;
-        g_one_hmi.restart_sync_pending = 0U;
-        g_one_hmi.query_index = 0U;
-        g_one_hmi.status.error = ONE_HMI_ERROR_QUERY_TIMEOUT;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_ERROR;
-        g_one_hmi.status.last_hal_status = HAL_TIMEOUT;
-        g_one_hmi.status.query_timeout_count++;
-        one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-        result = HAL_TIMEOUT;
-    }
-
     if ((g_one_hmi.status.link_alive != 0U) &&
         (one_hmi_time_reached(g_one_hmi.status.last_rx_tick_ms +
                               ONE_HMI_LINK_TIMEOUT_MS) != 0U)) {
         g_one_hmi.status.link_alive = 0U;
     }
-
-    if ((g_one_hmi.pending_sync == 0U) &&
-        (g_one_hmi.active_query == 0U) &&
-        (g_one_hmi.measurement_publish_active == 0U) &&
-        (g_one_hmi.status.waveform_state ==
-         ONE_HMI_WAVEFORM_STATE_IDLE) &&
-        (one_hmi_time_reached(g_one_hmi.next_sync_ms) != 0U)) {
-        status = Signal_HMI_App_RequestSync();
-        g_one_hmi.status.periodic_sync_count++;
-        if ((status != HAL_OK) && (status != HAL_BUSY)) {
-            result = status;
-        }
-    }
-
-#if TJC_SCREEN_ENABLE_GENERATOR_CONTROL
-    if ((g_one_hmi.pending_sync != 0U) &&
-        (g_one_hmi.active_query == 0U) &&
-        (g_one_hmi.measurement_publish_active == 0U) &&
-        (g_one_hmi.status.waveform_state ==
-         ONE_HMI_WAVEFORM_STATE_IDLE)) {
-        status = one_hmi_start_next_query();
-        if ((status != HAL_OK) && (status != HAL_BUSY)) {
-            result = status;
-        }
-    }
-#endif
 
     status = one_hmi_measurement_publish_process();
     if ((status != HAL_OK) && (status != HAL_BUSY)) {
@@ -1474,40 +954,12 @@ HAL_StatusTypeDef Signal_HMI_App_Process(void)
         result = status;
     }
 
-    return result;
-}
-
-HAL_StatusTypeDef Signal_HMI_App_RequestSync(void)
-{
-    if (TJC_SCREEN_ENABLE_GENERATOR_CONTROL == 0U) {
-        g_one_hmi.pending_sync = 0U;
-        g_one_hmi.active_query = 0U;
-        g_one_hmi.restart_sync_pending = 0U;
-        g_one_hmi.query_index = 0U;
+    if (result == HAL_OK) {
         g_one_hmi.status.error = ONE_HMI_ERROR_NONE;
-        g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_IDLE;
-        one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-        return HAL_OK;
+        g_one_hmi.status.last_hal_status = HAL_OK;
     }
 
-    if (g_one_hmi.active_query != 0U) {
-        g_one_hmi.restart_sync_pending = 1U;
-        return HAL_BUSY;
-    }
-
-    g_one_hmi.pending_sync = 1U;
-    g_one_hmi.restart_sync_pending = 0U;
-    g_one_hmi.query_index = 0U;
-    g_one_hmi.status.error = ONE_HMI_ERROR_NONE;
-    g_one_hmi.status.sync_state = ONE_HMI_SYNC_STATE_QUERYING;
-    one_hmi_schedule_next_sync(ONE_HMI_PERIODIC_SYNC_MS);
-
-    if (g_one_hmi.status.waveform_state !=
-        ONE_HMI_WAVEFORM_STATE_IDLE) {
-        return HAL_BUSY;
-    }
-
-    return HAL_OK;
+    return result;
 }
 
 HAL_StatusTypeDef Signal_HMI_App_SetWaveformCycles(

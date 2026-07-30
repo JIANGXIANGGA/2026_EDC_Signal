@@ -18,9 +18,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-option(SIGNAL_ENABLE_ADC_DAC_LOOPBACK
-       "Enable internal ADC1 to DAC ping-pong loopback" OFF)
-
 # Set the project name
 set(CMAKE_PROJECT_NAME G474)
 
@@ -72,7 +69,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Services/fft.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_const_structs.c
-    Drivers/CMSIS/DSP/Source/ComplexMathFunctions/arm_cmplx_mag_f32.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_f32.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_radix8_f32.c
@@ -87,16 +83,8 @@ if(NOT SIGNAL_ADC_USE_CUBEMX_GENERATED)
     )
 endif()
 
-if(SIGNAL_ENABLE_ADC_DAC_LOOPBACK)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-        Modules/DAC/dac_output.c
-        Services/adc_dac_loopback_service.c
-    )
-endif()
-
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    Modules/DAC
     Modules/ADC
     Modules/HMI
     Services/
@@ -114,7 +102,6 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     ARM_FFT_ALLOW_TABLES
     ARM_TABLE_TWIDDLECOEF_F32_4096
     ARM_TABLE_BITREVIDX_FLT_4096
-    SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK=$<BOOL:${SIGNAL_ENABLE_ADC_DAC_LOOPBACK}>
 )
 
 # Add linked libraries

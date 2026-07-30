@@ -6,20 +6,199 @@
 #define SIGNAL_MEASUREMENT_ADC_MAX_CODE 4095.0f
 #define SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV 20.0f
 #define SIGNAL_MEASUREMENT_HARMONIC_TOLERANCE_HZ 1000.0f
+#define SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ 1500.0f
 
 typedef struct {
     uint8_t initialized;
     uint32_t observed_analysis_count;
     signal_measurement_calibration_t calibration;
     signal_measurement_result_t result;
+    signal_measurement_result_t
+        history[SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT];
+    uint8_t history_count;
+    uint8_t history_write_index;
 } signal_measurement_context_t;
 
 static signal_measurement_context_t g_signal_measurement;
+
+static void signal_measurement_sort_values(float *values, uint8_t count)
+{
+    for (uint8_t index = 1U; index < count; ++index) {
+        const float value = values[index];
+        uint8_t position = index;
+
+        while ((position > 0U) && (value < values[position - 1U])) {
+            values[position] = values[position - 1U];
+            --position;
+        }
+        values[position] = value;
+    }
+}
+
+static float signal_measurement_robust_average(float *values,
+                                                uint8_t count,
+                                                float *spread)
+{
+    uint8_t first = 0U;
+    uint8_t last = count;
+    float sum = 0.0f;
+
+    if (count == 0U) {
+        if (spread != NULL) {
+            *spread = 0.0f;
+        }
+        return 0.0f;
+    }
+
+    signal_measurement_sort_values(values, count);
+    if (spread != NULL) {
+        *spread = values[count - 1U] - values[0U];
+    }
+
+    /* 五帧以上去掉单个最大值和最小值，再对其余数据求均值。 */
+    if (count >= 5U) {
+        first = 1U;
+        last = count - 1U;
+    }
+    for (uint8_t index = first; index < last; ++index) {
+        sum += values[index];
+    }
+    return sum / (float)(last - first);
+}
+
+static uint8_t signal_measurement_history_compatible(
+    const signal_measurement_result_t *sample)
+{
+    const signal_measurement_result_t *previous;
+    uint8_t previous_index;
+
+    if (g_signal_measurement.history_count == 0U) {
+        return 1U;
+    }
+
+    previous_index = (g_signal_measurement.history_write_index == 0U) ?
+                         (SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT - 1U) :
+                         (g_signal_measurement.history_write_index - 1U);
+    previous = &g_signal_measurement.history[previous_index];
+    if (sample->component_count != previous->component_count) {
+        return 0U;
+    }
+
+    for (uint8_t index = 0U; index < sample->component_count; ++index) {
+        if ((sample->components[index].harmonic_order !=
+             previous->components[index].harmonic_order) ||
+            (fabsf(sample->components[index].frequency_hz -
+                   previous->components[index].frequency_hz) >
+             SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ)) {
+            return 0U;
+        }
+    }
+    return 1U;
+}
+
+static void signal_measurement_push_history(
+    const signal_measurement_result_t *sample)
+{
+    if (signal_measurement_history_compatible(sample) == 0U) {
+        g_signal_measurement.history_count = 0U;
+        g_signal_measurement.history_write_index = 0U;
+    }
+
+    g_signal_measurement.history[g_signal_measurement.history_write_index] =
+        *sample;
+    g_signal_measurement.history_write_index =
+        (uint8_t)((g_signal_measurement.history_write_index + 1U) %
+                  SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT);
+    if (g_signal_measurement.history_count <
+        SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT) {
+        g_signal_measurement.history_count++;
+    }
+}
+
+static void signal_measurement_aggregate_history(
+    const signal_measurement_result_t *latest,
+    signal_measurement_result_t *output)
+{
+    float values[SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT];
+    uint8_t valid_count = 0U;
+
+    *output = *latest;
+    output->averaging_count = g_signal_measurement.history_count;
+
+    for (uint8_t frame = 0U;
+         frame < g_signal_measurement.history_count;
+         ++frame) {
+        const signal_measurement_result_t *history =
+            &g_signal_measurement.history[frame];
+        values[frame] = history->peak_to_peak_mv;
+        if (history->signal_valid != 0U) {
+            valid_count++;
+        }
+    }
+    output->peak_to_peak_mv = signal_measurement_robust_average(
+        values,
+        g_signal_measurement.history_count,
+        &output->peak_to_peak_spread_mv);
+
+    for (uint8_t frame = 0U;
+         frame < g_signal_measurement.history_count;
+         ++frame) {
+        values[frame] = g_signal_measurement.history[frame].raw_rms_mv;
+    }
+    output->raw_rms_mv = signal_measurement_robust_average(
+        values, g_signal_measurement.history_count, NULL);
+    output->true_rms_mv = output->raw_rms_mv;
+
+    output->max_component_spread_mv = 0.0f;
+    for (uint8_t component = 0U;
+         component < output->component_count;
+         ++component) {
+        float spread;
+
+        for (uint8_t frame = 0U;
+             frame < g_signal_measurement.history_count;
+             ++frame) {
+            values[frame] = g_signal_measurement
+                                .history[frame]
+                                .components[component]
+                                .frequency_hz;
+        }
+        output->components[component].frequency_hz =
+            signal_measurement_robust_average(
+                values, g_signal_measurement.history_count, NULL);
+
+        for (uint8_t frame = 0U;
+             frame < g_signal_measurement.history_count;
+             ++frame) {
+            values[frame] = g_signal_measurement
+                                .history[frame]
+                                .components[component]
+                                .amplitude_mv;
+        }
+        output->components[component].amplitude_mv =
+            signal_measurement_robust_average(
+                values, g_signal_measurement.history_count, &spread);
+        if (spread > output->max_component_spread_mv) {
+            output->max_component_spread_mv = spread;
+        }
+    }
+
+    output->fundamental_frequency_hz =
+        (output->component_count > 0U) ?
+            output->components[0].frequency_hz :
+            0.0f;
+    output->signal_valid =
+        ((valid_count * 2U) >= g_signal_measurement.history_count) ? 1U : 0U;
+}
 
 static uint8_t signal_measurement_calibration_valid(
     const signal_measurement_calibration_t *calibration)
 {
     if ((calibration == NULL) ||
+        (isfinite(calibration->input_mv_per_code) == 0) ||
+        (isfinite(calibration->peak_to_peak_gain) == 0) ||
+        (isfinite(calibration->rms_gain) == 0) ||
+        (isfinite(calibration->spectrum_gain) == 0) ||
         (calibration->input_mv_per_code <= 0.0f) ||
         (calibration->peak_to_peak_gain <= 0.0f) ||
         (calibration->rms_gain <= 0.0f) ||
@@ -32,7 +211,8 @@ static uint8_t signal_measurement_calibration_valid(
     for (uint8_t index = 0U;
          index < calibration->response_point_count;
          ++index) {
-        if ((calibration->response[index].correction_gain <= 0.0f) ||
+        if ((isfinite(calibration->response[index].correction_gain) == 0) ||
+            (calibration->response[index].correction_gain <= 0.0f) ||
             ((index > 0U) &&
              (calibration->response[index].frequency_hz <=
               calibration->response[index - 1U].frequency_hz))) {
@@ -113,7 +293,8 @@ static uint8_t signal_measurement_matches_harmonic(
     if (order == 0U) {
         return 0U;
     }
-    if (((float)order * fundamental_hz) > FFT_MAX_FREQUENCY_HZ) {
+    if (((float)order * fundamental_hz) >
+        (FFT_MAX_FREQUENCY_HZ + FFT_FREQUENCY_RANGE_TOLERANCE_HZ)) {
         return 0U;
     }
     if ((2.0f * bin_resolution_hz) > tolerance_hz) {
@@ -359,9 +540,10 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
             1U :
             0U;
 
-    g_signal_measurement.observed_analysis_count =
-        analysis->analysis_count;
-    g_signal_measurement.result = next;
+    signal_measurement_push_history(&next);
+    signal_measurement_aggregate_history(
+        &next, &g_signal_measurement.result);
+    g_signal_measurement.observed_analysis_count = analysis->analysis_count;
     return HAL_OK;
 }
 

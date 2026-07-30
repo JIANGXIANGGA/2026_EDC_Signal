@@ -37,12 +37,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+/* 170 MHz / (42 + 1) = 3.953488 MSPS，8192 点 FFT 栅格为 482.604 Hz。 */
+#define SIGNAL_ADC_TIMER_PERIOD 42U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+/* 旧 CubeMX 生成调用保留在自动区，但运行时不再初始化 ADC1/PB0。 */
+#define MX_ADC1_Init() ((void)0)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -58,6 +60,53 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static HAL_StatusTypeDef Signal_ADC_PLLClock_Config(void)
+{
+  RCC_OscInitTypeDef oscillator = {0};
+  RCC_ClkInitTypeDef clock = {0};
+
+  /* 临时切换到 HSI，才能在不影响 PLLR 系统时钟的前提下修改 PLLP。 */
+  oscillator.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  oscillator.HSIState = RCC_HSI_ON;
+  oscillator.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  oscillator.PLL.PLLState = RCC_PLL_NONE;
+  if (HAL_RCC_OscConfig(&oscillator) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  clock.ClockType = RCC_CLOCKTYPE_SYSCLK;
+  clock.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  if (HAL_RCC_ClockConfig(&clock, FLASH_LATENCY_4) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  oscillator = (RCC_OscInitTypeDef){0};
+  oscillator.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  oscillator.HSEState = RCC_HSE_ON;
+  oscillator.PLL.PLLState = RCC_PLL_ON;
+  oscillator.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  oscillator.PLL.PLLM = RCC_PLLM_DIV6;
+  oscillator.PLL.PLLN = 85;
+  oscillator.PLL.PLLP = RCC_PLLP_DIV5;
+  oscillator.PLL.PLLQ = RCC_PLLQ_DIV2;
+  oscillator.PLL.PLLR = RCC_PLLR_DIV2;
+  if (HAL_RCC_OscConfig(&oscillator) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  clock.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  clock.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  clock.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  clock.APB1CLKDivider = RCC_HCLK_DIV1;
+  clock.APB2CLKDivider = RCC_HCLK_DIV1;
+  return HAL_RCC_ClockConfig(&clock, FLASH_LATENCY_4);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -84,7 +133,10 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  if (Signal_ADC_PLLClock_Config() != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -96,12 +148,35 @@ int main(void)
   MX_ADC1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  /*
+   * 保持运行固件与 G474.ioc 一致。即使尚未重新生成 CubeMX 代码，
+   * 也在启动 ADC 前将 TIM7 更新率修正到严格满足 500 Hz 栅格要求。
+   */
+  htim7.Init.Period = SIGNAL_ADC_TIMER_PERIOD;
+  __HAL_TIM_SET_AUTORELOAD(&htim7, SIGNAL_ADC_TIMER_PERIOD);
+  __HAL_TIM_SET_COUNTER(&htim7, 0U);
+
+  /* PA7/ADC2_IN4 高速通道，ADC12 异步时钟由 PLLP/5 提供 68 MHz。 */
+  HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
+  MX_ADC2_Init();
+
+  /*
+   * PA7 实机标定：输入高电平 124 mV、低电平 14 mV，即 110 mVpp；
+   * 34 帧串口统计的 ADC 峰峰值中位数为 137 code。
+   * 因此输入端电压换算系数为 110 mV / 137 code = 0.802920 mV/code。
+   * 该系数为线性比例，不假定输入固定为 110 mVpp，可覆盖 50～250 mVpp。
+   */
+  const signal_measurement_calibration_t measurement_calibration = {
+    .input_mv_per_code = 0.802920f,
+    .peak_to_peak_gain = 1.0f,
+    .rms_gain = 1.0f,
+    .spectrum_gain = 1.0f,
+    .response_point_count = 0U,
+  };
   const signal_app_config_t signal_app_config = {
     .adc_timer = &htim7,
     .hmi_uart = &huart1,
-    .dac = &hdac1,
-    .dac_timer = &htim6,
-    .measurement_calibration = NULL,
+    .measurement_calibration = &measurement_calibration,
   };
 
   if (Signal_App_Init(&signal_app_config) != HAL_OK)

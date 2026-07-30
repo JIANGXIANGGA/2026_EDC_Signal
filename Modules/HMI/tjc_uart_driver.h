@@ -19,6 +19,7 @@ typedef struct {
     uint32_t rx_restart_count;
     uint32_t uart_error_count;
     uint32_t tx_complete_count;
+    uint32_t tx_recovery_count;
     uint32_t tx_error_count;
 } tjc_uart_driver_status_t;
 
