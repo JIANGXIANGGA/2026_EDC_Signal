@@ -23,6 +23,7 @@ static void waveform_analyzer_clear_peaks(void)
         g_waveform_analyzer_result.peak_bins[index] = 0U;
         g_waveform_analyzer_result.peak_frequencies_hz[index] = 0.0f;
         g_waveform_analyzer_result.peak_amplitudes_code[index] = 0.0f;
+        g_waveform_analyzer_result.peak_phases_rad[index] = 0.0f;
     }
 }
 
@@ -45,7 +46,8 @@ static uint8_t waveform_analyzer_is_local_peak(uint16_t bin)
 
 static void waveform_analyzer_insert_peak(uint16_t bin,
                                            float frequency_hz,
-                                           float amplitude_code)
+                                           float amplitude_code,
+                                           float phase_rad)
 {
     uint8_t position;
 
@@ -71,12 +73,15 @@ static void waveform_analyzer_insert_peak(uint16_t bin,
             g_waveform_analyzer_result.peak_frequencies_hz[position - 1U];
         g_waveform_analyzer_result.peak_amplitudes_code[position] =
             g_waveform_analyzer_result.peak_amplitudes_code[position - 1U];
+        g_waveform_analyzer_result.peak_phases_rad[position] =
+            g_waveform_analyzer_result.peak_phases_rad[position - 1U];
         --position;
     }
 
     g_waveform_analyzer_result.peak_bins[position] = bin;
     g_waveform_analyzer_result.peak_frequencies_hz[position] = frequency_hz;
     g_waveform_analyzer_result.peak_amplitudes_code[position] = amplitude_code;
+    g_waveform_analyzer_result.peak_phases_rad[position] = phase_rad;
 }
 
 static void waveform_analyzer_sort_peaks_by_frequency(void)
@@ -98,6 +103,8 @@ static void waveform_analyzer_sort_peaks_by_frequency(void)
             const float amplitude =
                 g_waveform_analyzer_result
                     .peak_amplitudes_code[position - 1U];
+            const float phase =
+                g_waveform_analyzer_result.peak_phases_rad[position - 1U];
 
             g_waveform_analyzer_result.peak_bins[position - 1U] =
                 g_waveform_analyzer_result.peak_bins[position];
@@ -105,17 +112,20 @@ static void waveform_analyzer_sort_peaks_by_frequency(void)
                 g_waveform_analyzer_result.peak_frequencies_hz[position];
             g_waveform_analyzer_result.peak_amplitudes_code[position - 1U] =
                 g_waveform_analyzer_result.peak_amplitudes_code[position];
+            g_waveform_analyzer_result.peak_phases_rad[position - 1U] =
+                g_waveform_analyzer_result.peak_phases_rad[position];
             g_waveform_analyzer_result.peak_bins[position] = bin;
             g_waveform_analyzer_result.peak_frequencies_hz[position] =
                 frequency;
             g_waveform_analyzer_result.peak_amplitudes_code[position] =
                 amplitude;
+            g_waveform_analyzer_result.peak_phases_rad[position] = phase;
             --position;
         }
     }
 }
 
-static void waveform_analyzer_find_spectrum_peaks(void)
+static void waveform_analyzer_find_spectrum_peaks(const uint16_t *samples)
 {
     const float bin_resolution =
         g_waveform_analyzer_result.bin_resolution_hz;
@@ -127,8 +137,14 @@ static void waveform_analyzer_find_spectrum_peaks(void)
         return;
     }
 
-    first_bin = (uint16_t)ceilf(FFT_MIN_FREQUENCY_HZ / bin_resolution);
-    last_bin = (uint16_t)floorf(FFT_MAX_FREQUENCY_HZ / bin_resolution);
+    /*
+     * 量程下限可能落在两个 FFT bin 之间。约 3.95 MSPS、8192 点时，
+     * 10 kHz 位于 bin 20.72，局部峰可能出现在 bin 21，因此搜索
+     * 起点必须向下取整，再由三点插值判断实际频率。
+     */
+    first_bin = (uint16_t)(FFT_MIN_FREQUENCY_HZ / bin_resolution);
+    /* 候选 bin 覆盖到量程上限的相邻整数栅格，再由插值频率严格筛选。 */
+    last_bin = (uint16_t)ceilf(FFT_MAX_FREQUENCY_HZ / bin_resolution);
     if (first_bin < 1U) {
         first_bin = 1U;
     }
@@ -139,6 +155,7 @@ static void waveform_analyzer_find_spectrum_peaks(void)
     for (uint16_t bin = first_bin; bin <= last_bin; ++bin) {
         float frequency_hz;
         float amplitude_code;
+        float phase_rad = 0.0f;
 
         if ((FFT_Magnitude[bin] < WAVEFORM_ANALYZER_MIN_PEAK_CODE) ||
             (waveform_analyzer_is_local_peak(bin) == 0U) ||
@@ -148,12 +165,35 @@ static void waveform_analyzer_find_spectrum_peaks(void)
                                      &amplitude_code) == 0U)) {
             continue;
         }
-        if ((frequency_hz < FFT_MIN_FREQUENCY_HZ) ||
-            (frequency_hz > FFT_MAX_FREQUENCY_HZ)) {
+        if ((frequency_hz <
+             (FFT_MIN_FREQUENCY_HZ - FFT_FREQUENCY_RANGE_TOLERANCE_HZ)) ||
+            (frequency_hz >
+             (FFT_MAX_FREQUENCY_HZ + FFT_FREQUENCY_RANGE_TOLERANCE_HZ))) {
             continue;
         }
+        if (frequency_hz < FFT_MIN_FREQUENCY_HZ) {
+            frequency_hz = FFT_MIN_FREQUENCY_HZ;
+        } else if (frequency_hz > FFT_MAX_FREQUENCY_HZ) {
+            frequency_hz = FFT_MAX_FREQUENCY_HZ;
+        }
 
-        waveform_analyzer_insert_peak(bin, frequency_hz, amplitude_code);
+        /* 先按 FFT 幅值保留最强候选，避免对所有噪声峰重复扫描 8192 点。 */
+        waveform_analyzer_insert_peak(bin,
+                                      frequency_hz,
+                                      amplitude_code,
+                                      phase_rad);
+    }
+
+    /* 只对最终保留的候选峰执行精确频点加权最小二乘估幅。 */
+    for (uint8_t index = 0U;
+         index < g_waveform_analyzer_result.peak_count;
+         ++index) {
+        (void)FFT_EstimateTone(
+            samples,
+            (float)g_waveform_analyzer.sample_rate_hz,
+            g_waveform_analyzer_result.peak_frequencies_hz[index],
+            &g_waveform_analyzer_result.peak_amplitudes_code[index],
+            &g_waveform_analyzer_result.peak_phases_rad[index]);
     }
 
     waveform_analyzer_sort_peaks_by_frequency();
@@ -180,9 +220,8 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
 {
     uint16_t min_code = WAVEFORM_ANALYZER_ADC_MAX_CODE;
     uint16_t max_code = 0U;
-    uint32_t sum = 0U;
+    float dc_code = 0.0f;
     float square_sum = 0.0f;
-    float dc_code;
 
     if ((g_waveform_analyzer.initialized == 0U) || (samples == NULL) ||
         (length < WAVEFORM_ANALYZER_FFT_SIZE)) {
@@ -198,18 +237,16 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         if (sample > max_code) {
             max_code = sample;
         }
-        sum += sample;
+        /* Welford 单遍统计，避免为了 RMS 再扫描一次完整采样块。 */
+        const float delta = (float)sample - dc_code;
+        dc_code += delta / (float)(index + 1U);
+        square_sum += delta * ((float)sample - dc_code);
     }
 
-    dc_code = (float)sum / (float)WAVEFORM_ANALYZER_FFT_SIZE;
-    for (uint32_t index = 0U; index < WAVEFORM_ANALYZER_FFT_SIZE; ++index) {
-        const float centered_sample =
-            (float)(samples[index] & WAVEFORM_ANALYZER_ADC_MAX_CODE) - dc_code;
-        square_sum += centered_sample * centered_sample;
-    }
-
-    FFT_Process(samples, (float)g_waveform_analyzer.sample_rate_hz);
-    waveform_analyzer_find_spectrum_peaks();
+    FFT_Process(samples,
+                (float)g_waveform_analyzer.sample_rate_hz,
+                dc_code);
+    waveform_analyzer_find_spectrum_peaks(samples);
 
     g_waveform_analyzer_result.initialized = 1U;
     g_waveform_analyzer_result.result_ready = 1U;

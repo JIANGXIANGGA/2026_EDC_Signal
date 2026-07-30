@@ -8,6 +8,7 @@
 
 #define SIGNAL_MEASUREMENT_COMPONENT_COUNT 3U
 #define SIGNAL_MEASUREMENT_RESPONSE_POINT_COUNT 6U
+#define SIGNAL_MEASUREMENT_AVERAGING_FRAME_COUNT 9U
 
 /*
  * 默认按 ADC 满量程 3.3 V、模拟前端增益 1 倍换算。
@@ -50,11 +51,14 @@ typedef struct {
     uint8_t signal_valid;
     uint8_t clipped;
     uint8_t component_count;
+    uint8_t averaging_count;
     uint32_t measurement_count;
     float peak_to_peak_mv;
+    float peak_to_peak_spread_mv;
     float true_rms_mv;
     float raw_rms_mv;
     float fundamental_frequency_hz;
+    float max_component_spread_mv;
     signal_measurement_component_t
         components[SIGNAL_MEASUREMENT_COMPONENT_COUNT];
 } signal_measurement_result_t;

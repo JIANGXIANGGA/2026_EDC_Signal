@@ -6,17 +6,13 @@
 #include "signal_measurement_service.h"
 #include "waveform_analyzer_service.h"
 
-#define SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS 20U
-#define SIGNAL_ACQUISITION_FFT_SAMPLE_RATE_HZ 2048000U
-
-#if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-#include "adc_dac_loopback_service.h"
-#include "dac_output.h"
-#endif
+/* 波形切换时最多 6 个候选峰，实测最坏耗时约 31.9 ms。 */
+#define SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS 40U
 
 static signal_acquisition_status_t g_signal_acquisition_status;
 static uint16_t g_signal_acquisition_block[ADC_INTERNAL_BLOCK_SIZE];
 static uint32_t g_signal_acquisition_next_analysis_ms;
+static uint8_t g_signal_acquisition_cycle_counter_ready;
 
 _Static_assert(ADC_INTERNAL_BLOCK_SIZE >= WAVEFORM_ANALYZER_FFT_SIZE,
                "ADC 采样块长度必须覆盖一次 FFT");
@@ -64,6 +60,26 @@ static uint8_t signal_acquisition_time_reached(uint32_t deadline_ms)
     return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
 }
 
+static void signal_acquisition_cycle_counter_init(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0U;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    g_signal_acquisition_cycle_counter_ready =
+        ((DWT->CTRL & DWT_CTRL_CYCCNTENA_Msk) != 0U) ? 1U : 0U;
+}
+
+static uint32_t signal_acquisition_cycles_to_us(uint32_t cycles)
+{
+    if ((SystemCoreClock == 0U) ||
+        (g_signal_acquisition_cycle_counter_ready == 0U)) {
+        return 0U;
+    }
+    return (uint32_t)((((uint64_t)cycles * 1000000ULL) +
+                       ((uint64_t)SystemCoreClock / 2ULL)) /
+                      (uint64_t)SystemCoreClock);
+}
+
 static void signal_acquisition_update_status(void)
 {
     const waveform_analyzer_result_t *fft_result =
@@ -84,23 +100,6 @@ static void signal_acquisition_update_status(void)
     if (measurement_result != NULL) {
         g_signal_acquisition_status.measurement = *measurement_result;
     }
-
-#if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-    g_signal_acquisition_status.dac_half_complete_count =
-        DAC_Output_GetHalfCompleteCount();
-    g_signal_acquisition_status.dac_complete_count =
-        DAC_Output_GetCompleteCount();
-    g_signal_acquisition_status.dac_error_count =
-        DAC_Output_GetErrorCount();
-    g_signal_acquisition_status.dac_underrun_count =
-        DAC_Output_GetUnderrunCount();
-    g_signal_acquisition_status.dac_loopback_running =
-        ADC_DAC_Loopback_IsRunning();
-    g_signal_acquisition_status.dac_loopback_dropped_block_count =
-        ADC_DAC_Loopback_GetDroppedBlockCount();
-    g_signal_acquisition_status.dac_loopback_error_count =
-        ADC_DAC_Loopback_GetErrorCount();
-#endif
 
     if (fft_result == NULL) {
         return;
@@ -148,22 +147,12 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     uint32_t adc_sample_rate_hz;
 
     g_signal_acquisition_status = (signal_acquisition_status_t){0};
+    signal_acquisition_cycle_counter_init();
     if ((config == NULL) || (config->adc_timer == NULL)) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
             HAL_ERROR);
     }
-
-#if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-    if ((config->dac == NULL) || (config->dac_timer == NULL)) {
-        return signal_acquisition_set_error(
-            SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
-            HAL_ERROR);
-    }
-#else
-    (void)config->dac;
-    (void)config->dac_timer;
-#endif
 
     adc_sample_rate_hz =
         signal_acquisition_get_timer_update_rate_hz(config->adc_timer);
@@ -180,7 +169,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
             status);
     }
 
-    status = Waveform_Analyzer_Init(SIGNAL_ACQUISITION_FFT_SAMPLE_RATE_HZ);
+    status = Waveform_Analyzer_Init(adc_sample_rate_hz);
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ANALYZER_INIT,
@@ -194,17 +183,6 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
             SIGNAL_ACQUISITION_ERROR_MEASUREMENT_INIT,
             status);
     }
-
-#if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-    status = ADC_DAC_Loopback_Init(config->dac,
-                                   config->dac_timer,
-                                   adc_sample_rate_hz);
-    if (status != HAL_OK) {
-        return signal_acquisition_set_error(
-            SIGNAL_ACQUISITION_ERROR_LOOPBACK_INIT,
-            status);
-    }
-#endif
 
     status = ADC_Internal_Start();
     if (status != HAL_OK) {
@@ -242,14 +220,11 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Process(void)
              g_signal_acquisition_next_analysis_ms) != 0U) &&
         (ADC_Internal_CopyLatestBlock(g_signal_acquisition_block,
                                       ADC_INTERNAL_BLOCK_SIZE) != 0U)) {
+        const uint32_t analysis_start_cycles = DWT->CYCCNT;
+        uint32_t analysis_time_us;
+
         g_signal_acquisition_next_analysis_ms =
             HAL_GetTick() + SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS;
-#if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-        /* 先交付实时回环数据，再执行耗时的 FFT。 */
-        (void)ADC_DAC_Loopback_PushBlock(g_signal_acquisition_block,
-                                         ADC_INTERNAL_BLOCK_SIZE);
-#endif
-
         status = Waveform_Analyzer_ProcessBlock(g_signal_acquisition_block,
                                                 ADC_INTERNAL_BLOCK_SIZE);
         if (status != HAL_OK) {
@@ -264,6 +239,15 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Process(void)
             return signal_acquisition_set_error(
                 SIGNAL_ACQUISITION_ERROR_MEASUREMENT_RUNTIME,
                 status);
+        }
+
+        analysis_time_us = signal_acquisition_cycles_to_us(
+            DWT->CYCCNT - analysis_start_cycles);
+        g_signal_acquisition_status.last_analysis_time_us = analysis_time_us;
+        if (analysis_time_us >
+            g_signal_acquisition_status.max_analysis_time_us) {
+            g_signal_acquisition_status.max_analysis_time_us =
+                analysis_time_us;
         }
 
         g_signal_acquisition_status.adc_block_count++;

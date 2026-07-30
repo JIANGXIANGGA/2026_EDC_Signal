@@ -49,8 +49,6 @@ HAL_StatusTypeDef Signal_App_Init(const signal_app_config_t *config)
     }
 
     acquisition_config.adc_timer = config->adc_timer;
-    acquisition_config.dac = config->dac;
-    acquisition_config.dac_timer = config->dac_timer;
     acquisition_config.measurement_calibration =
         config->measurement_calibration;
 

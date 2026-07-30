@@ -14,11 +14,32 @@ typedef struct {
     uint32_t rx_consumed;
     volatile uint16_t rx_event_position;
     volatile uint8_t rx_restart_pending;
+    volatile uint8_t tx_active;
     volatile uint8_t tx_complete_pending;
     tjc_uart_driver_status_t status;
 } tjc_uart_driver_context_t;
 
 static tjc_uart_driver_context_t g_tjc_uart_driver;
+
+static uint8_t tjc_uart_driver_tx_state_busy(
+    HAL_UART_StateTypeDef state)
+{
+    return ((state == HAL_UART_STATE_BUSY_TX) ||
+            (state == HAL_UART_STATE_BUSY_TX_RX)) ?
+               1U :
+               0U;
+}
+
+static void tjc_uart_driver_publish_tx_complete(void)
+{
+    if (g_tjc_uart_driver.tx_active == 0U) {
+        return;
+    }
+
+    g_tjc_uart_driver.tx_active = 0U;
+    g_tjc_uart_driver.tx_complete_pending = 1U;
+    g_tjc_uart_driver.status.tx_complete_count++;
+}
 
 static HAL_StatusTypeDef tjc_uart_driver_start_receive(void)
 {
@@ -172,6 +193,18 @@ HAL_StatusTypeDef TJC_UART_Driver_Process(void)
     if (g_tjc_uart_driver.status.initialized == 0U) {
         return HAL_ERROR;
     }
+
+    /*
+     * DMA 完成回调只负责发布事件。若完成中断通知因极端时序未被主循环观察到，
+     * 则根据 HAL TX 状态补发一次完成事件，避免上层 tx_busy 永久锁死。
+     */
+    if ((g_tjc_uart_driver.tx_active != 0U) &&
+        (tjc_uart_driver_tx_state_busy(
+             HAL_UART_GetState(g_tjc_uart_driver.uart)) == 0U)) {
+        tjc_uart_driver_publish_tx_complete();
+        g_tjc_uart_driver.status.tx_recovery_count++;
+    }
+
     if (g_tjc_uart_driver.rx_restart_pending == 0U) {
         return HAL_OK;
     }
@@ -210,9 +243,18 @@ HAL_StatusTypeDef TJC_UART_Driver_Transmit(const uint8_t *data,
         return HAL_ERROR;
     }
 
+    if (g_tjc_uart_driver.tx_active != 0U) {
+        return HAL_BUSY;
+    }
+
+    /* 在启动 DMA 前置位，防止极短报文在 HAL 返回前已经触发完成中断。 */
+    g_tjc_uart_driver.tx_active = 1U;
     status = HAL_UART_Transmit_DMA(g_tjc_uart_driver.uart,
                                    data,
                                    length);
+    if (status != HAL_OK) {
+        g_tjc_uart_driver.tx_active = 0U;
+    }
     g_tjc_uart_driver.status.last_hal_status = status;
     if ((status != HAL_OK) && (status != HAL_BUSY)) {
         g_tjc_uart_driver.status.tx_error_count++;
@@ -274,7 +316,13 @@ uint8_t TJC_UART_Driver_TakeTxComplete(void)
     uint8_t completed;
 
     completed = g_tjc_uart_driver.tx_complete_pending;
-    g_tjc_uart_driver.tx_complete_pending = 0U;
+    if (completed != 0U) {
+        /*
+         * 读到 0 时禁止写回 0。否则完成中断若发生在读取与写回之间，
+         * 新事件会被主循环覆盖，导致上层永久保持发送忙状态。
+         */
+        g_tjc_uart_driver.tx_complete_pending = 0U;
+    }
     return completed;
 }
 
@@ -314,8 +362,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *uart)
 {
     if ((g_tjc_uart_driver.status.initialized != 0U) &&
         (uart == g_tjc_uart_driver.uart)) {
-        g_tjc_uart_driver.tx_complete_pending = 1U;
-        g_tjc_uart_driver.status.tx_complete_count++;
+        tjc_uart_driver_publish_tx_complete();
     }
 }
 
@@ -328,6 +375,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *uart)
         g_tjc_uart_driver.status.uart_error_count++;
         g_tjc_uart_driver.status.rx_active = 0U;
         g_tjc_uart_driver.rx_restart_pending = 1U;
-        g_tjc_uart_driver.tx_complete_pending = 1U;
+        if ((g_tjc_uart_driver.tx_active != 0U) &&
+            (tjc_uart_driver_tx_state_busy(
+                 HAL_UART_GetState(uart)) == 0U)) {
+            tjc_uart_driver_publish_tx_complete();
+            g_tjc_uart_driver.status.tx_recovery_count++;
+        }
     }
 }
