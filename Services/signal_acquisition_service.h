@@ -7,17 +7,12 @@
 #include "stm32g4xx_hal.h"
 #include "waveform_analyzer_service.h"
 
-#ifndef SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
-#define SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK 0U
-#endif
-
 typedef enum {
     SIGNAL_ACQUISITION_ERROR_NONE = 0,
     SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
     SIGNAL_ACQUISITION_ERROR_ADC_INIT,
     SIGNAL_ACQUISITION_ERROR_ANALYZER_INIT,
     SIGNAL_ACQUISITION_ERROR_MEASUREMENT_INIT,
-    SIGNAL_ACQUISITION_ERROR_LOOPBACK_INIT,
     SIGNAL_ACQUISITION_ERROR_ADC_START,
     SIGNAL_ACQUISITION_ERROR_ADC_RUNTIME,
     SIGNAL_ACQUISITION_ERROR_ANALYZER_RUNTIME,
@@ -26,8 +21,6 @@ typedef enum {
 
 typedef struct {
     TIM_HandleTypeDef *adc_timer;
-    DAC_HandleTypeDef *dac;
-    TIM_HandleTypeDef *dac_timer;
     const signal_measurement_calibration_t *measurement_calibration;
 } signal_acquisition_config_t;
 
@@ -44,17 +37,12 @@ typedef struct {
     uint16_t adc_last_min;
     uint16_t adc_last_max;
     uint16_t adc_last_average;
-    uint32_t dac_half_complete_count;
-    uint32_t dac_complete_count;
-    uint32_t dac_error_count;
-    uint32_t dac_underrun_count;
-    uint8_t dac_loopback_running;
-    uint32_t dac_loopback_dropped_block_count;
-    uint32_t dac_loopback_error_count;
     uint8_t fft_ready;
     uint32_t fft_analysis_count;
     uint32_t fft_sample_rate_hz;
     float fft_bin_resolution_hz;
+    uint32_t last_analysis_time_us;
+    uint32_t max_analysis_time_us;
     float detected_frequency_hz;
     uint16_t waveform_peak_to_peak_code;
     uint16_t waveform_average_code;

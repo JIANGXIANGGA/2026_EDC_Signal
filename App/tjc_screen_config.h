@@ -13,28 +13,12 @@
 /* 串口参数：115200 bit/s、8 数据位、无校验、1 停止位、无流控。 */
 #define TJC_SCREEN_UART_BAUD_RATE 115200U
 
-/*
- * 当前 page0 通信自检开关。
- * 完成六个文本框联调后：固定值自检改为 0U；按页面完成情况再开启绘图和信号源控制。
- */
-#define TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST 0U
 #define TJC_SCREEN_ENABLE_PLOT_TRANSFER 1U
-#define TJC_SCREEN_ENABLE_GENERATOR_CONTROL 0U
 #define TJC_SCREEN_PLOT_SNAPSHOT_MODE 0U
-
-#if ((TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST != 0U) && \
-     (TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST != 1U))
-#error "TJC_SCREEN_ENABLE_MEASUREMENT_SELF_TEST must be 0 or 1"
-#endif
 
 #if ((TJC_SCREEN_ENABLE_PLOT_TRANSFER != 0U) && \
      (TJC_SCREEN_ENABLE_PLOT_TRANSFER != 1U))
 #error "TJC_SCREEN_ENABLE_PLOT_TRANSFER must be 0 or 1"
-#endif
-
-#if ((TJC_SCREEN_ENABLE_GENERATOR_CONTROL != 0U) && \
-     (TJC_SCREEN_ENABLE_GENERATOR_CONTROL != 1U))
-#error "TJC_SCREEN_ENABLE_GENERATOR_CONTROL must be 0 or 1"
 #endif
 
 #if ((TJC_SCREEN_PLOT_SNAPSHOT_MODE != 0U) && \
@@ -127,15 +111,5 @@
 /* 基波阶次固定为 1，串口屏只显示后两条谱线的谐波阶次。 */
 #define TJC_SCREEN_MEAS_COMPONENT2_ORDER "page0.va12"
 #define TJC_SCREEN_MEAS_COMPONENT3_ORDER "page0.va13"
-
-/* 页面 1：AD9910 信号源参数。 */
-#define TJC_SCREEN_GENERATOR_PAGE_ID 1U
-#define TJC_SCREEN_GEN_WAVEFORM "page1.va0"
-#define TJC_SCREEN_GEN_AMPLITUDE_PERCENT "page1.va1"
-#define TJC_SCREEN_GEN_PHASE_DEGREES "page1.va2"
-#define TJC_SCREEN_GEN_FREQUENCY_HZ "page1.va4"
-#define TJC_SCREEN_GEN_MODE "page1.va8"
-#define TJC_SCREEN_GEN_RAM_PRESET "page1.va9"
-#define TJC_SCREEN_GEN_RUN_FLAG "page1.va10"
 
 #endif

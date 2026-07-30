@@ -1,18 +1,20 @@
 # STM32G474 周期信号测量分析装置
 
 本项目面向 2026 年电赛 G 题，使用 STM32G474VET6、STM32 HAL 和 C11，测量外部
-信号发生器输出的周期信号。固件不再生成测试信号，AD9910 Driver、Service、
-Application 和自测代码均不参与当前构建。
+信号发生器输出的周期信号。固件只负责采集、分析和显示，不再包含板载信号源
+控制代码。
+
+当前版本为 2026-07-30 正式基线，已移除固定值自检、ADC/DAC 环回和标定遥测路径，
+后续功能在本基线的 Driver、Service、Application 分层上扩展。
 
 ## 当前功能
 
-- 片内 ADC1：PB0/ADC1_IN15、TIM7 TRGO、DMA Ping-Pong 连续采样。
-- 4096 点 CMSIS-DSP CFFT，提供 `FFT_Process()`、`FFT_Magnitude[]`、`FFT_Peak*` 接口。
-- Hann 窗、相干增益补偿和 Hann 三点频率/幅值插值。
+- 片内 ADC2：PA7/ADC2_IN4 高速通道、TIM7 TRGO、DMA Ping-Pong 连续采样。
+- 8192 点实数 FFT（内部复用 4096 点 CMSIS-DSP CFFT），提供频谱、谱峰及精确频点估计接口。
+- Hann 窗、相干增益补偿、三点频率插值和 Hann 加权最小二乘幅相估计。
 - 10 kHz～500 kHz 谱峰搜索和任意正整数阶谐波族筛选，有效信号输出 2～3 条谱线。
 - 峰峰值、真有效值、基频、各频率分量幅值及频谱图显示。
 - TJC 串口屏 USART1 DMA 通信，可选择显示 1 个或 3 个完整周期。
-- 可选 ADC 到 DAC 的同采样率 Ping-Pong 回环，默认关闭。
 
 ## 软件架构
 
@@ -22,34 +24,30 @@ Application
         │
 Service │
 ├── signal_acquisition_service    DMA 数据交接与分析任务编排
-├── waveform_analyzer_service     4096 点频谱分析
+├── waveform_analyzer_service     8192 点实数频谱分析
 ├── signal_measurement_service    电压标定、真有效值与谱线测量
-├── usart_hmi_service             TJC 帧解析与命令编码
-└── adc_dac_loopback_service      可选 ADC/DAC 回环
+└── usart_hmi_service             TJC 帧解析与命令编码
         │
 Driver  │
-├── adc_internal                  ADC1_IN15 + TIM7 TRGO + ADC DMA
-├── tjc_uart_driver               USART1 Receive-to-Idle DMA
-└── dac_output                    可选 TIM6 + DAC DMA
+├── adc_internal                  ADC2_IN4 + TIM7 TRGO + ADC DMA
+└── tjc_uart_driver               USART1 Receive-to-Idle DMA
 ```
 
 依赖方向为 `Application -> Service -> Driver -> HAL`。CubeMX 生成文件只在
 `USER CODE BEGIN/END` 区域接入业务代码。
 
-测量页协议由 `signal_hmi_app` 管理；当前
-`TJC_SCREEN_ENABLE_GENERATOR_CONTROL=0`，信号源控制代码不会参与编译。
+测量页协议由 `signal_hmi_app` 管理，仅包含测量值发布、时域波形和频谱绘制。
 
-## 500 Hz 频率分辨率
+## 小于 500 Hz 的频率栅格
 
 FFT 的频率栅格间隔为：
 
 ```text
-Δf = Fs / N = 2,048,000 / 4096 = 500 Hz
+Δf = Fs / N = 3,953,488 / 8192 ≈ 482.604 Hz
 ```
 
-频率轴使用与 `G474_FFT_Test` 一致的标称采样率 2.048 MHz，因此频率栅格固定为
-500 Hz。分析器初始化
-时还会检查：
+采样服务根据 TIM7 的时钟、预分频和自动重装值计算实际采样率，FFT 与频率插值共用
+同一采样率来源，避免 CubeMX 定时器参数变化后频率轴仍沿用旧常量。分析器初始化时还会检查：
 
 ```c
 sample_rate_hz <= WAVEFORM_ANALYZER_FFT_SIZE *
@@ -57,34 +55,35 @@ sample_rate_hz <= WAVEFORM_ANALYZER_FFT_SIZE *
 ```
 
 如果后续在 CubeMX 中提高采样率或减小 FFT 点数，导致 `Δf > 500 Hz`，初始化会直接
-返回错误，避免生成参数不达标的固件。Hann 三点插值用于降低非整周期采样的栅栏
-误差。TIM7 的实际触发率为 `170 MHz / 83 = 2,048,192.77 Hz`，与标称值相差约
-94 ppm；频率轴暂按参考工程策略使用标称值，后续可用标准源标定。边界整数 bin
-的三点插值允许超出标称范围最多半个 bin，避免将真实 10 kHz 谱线误删。
+返回错误，避免生成参数不达标的固件。Hann 三点插值用于降低非整周期采样的频率
+误差；量程两端允许一个 FFT 栅格的估计偏差，避免实际信号源频偏使 10 kHz 或
+500 kHz 有效分量被误删。插值频率上的 Hann 加权最小二乘负责最终幅值和相位。TIM7 的实际触发率为
+`170 MHz / 43 = 3,953,488.37 Hz`，运行时取整为 `3,953,488 Hz` 传入分析器。
 
-## 片内 ADC1 采集参数
+## 片内 ADC2 高速采集参数
 
 | 项目 | 当前配置 |
 | --- | --- |
-| ADC 引脚 | PB0 / ADC1_IN15，单端 12 bit |
-| ADC 时钟 | 170 MHz / 4 = 42.5 MHz |
+| ADC 引脚 | PA7 / ADC2_IN4 高速通道，单端 12 bit |
+| ADC 时钟 | PLL VCO 340 MHz / 5 = 68 MHz，异步 DIV1 |
 | 采样时间 | 2.5 周期；12 bit 单次转换总计约 15 ADC 周期 |
-| 采样触发 | TIM7 TRGO Update，PSC=0，ARR=82 |
-| 实际触发率 | 170 MHz / 83 = 2.04819277 MSPS |
-| FFT 标称采样率 | 2.048 MSPS |
-| DMA 缓冲区 | 2 x 4096 点，主 SRAM |
-| DMA | DMA1 Channel 1，Halfword，Circular，Very High |
-| 单块时间 | 约 2.000 ms |
-| FFT 分辨率 | 500 Hz |
+| 采样触发 | TIM7 TRGO Update，PSC=0，ARR=42 |
+| 实际触发率 | 170 MHz / 43 = 3.95348837 MSPS |
+| FFT 采样率 | 由 TIM7 配置计算，当前为 3.953488 MSPS |
+| DMA 缓冲区 | 2 x 8192 点，主 SRAM |
+| DMA | DMA2 Channel 2，Halfword，Circular，Very High |
+| 单块时间 | 约 2.072 ms |
+| FFT 分辨率 | 约 482.604 Hz |
 
 当前采集链路为：
 
-1. TIM7 约每 488.19 ns 产生一次 TRGO Update，硬件触发 ADC1 规则组转换。
-2. ADC1 DMA 循环接收 8192 点，在半满/全满回调中只发布半区事件。
-3. 主循环复制最新 4096 点，再执行时域统计、Hann 加窗 CFFT 和测量计算。
+1. TIM7 约每 252.94 ns 产生一次 TRGO Update，硬件触发 ADC2 规则组转换。
+2. ADC2 DMA 循环接收 16384 点，在半满/全满回调中只发布 8192 点半区事件。
+3. 主循环复制最新 8192 点；若复制恰好跨越 DMA 半区边界，立即改复制刚完成的新半区，
+   再执行单遍时域统计、Hann 加窗实数 FFT、精确频点幅相估计和测量计算。
 
-ADC 在首次启动前执行单端校准；ADC/DMA 错误只在回调中设置恢复标志，由主循环停止
-并重新启动采集。
+ADC 在首次启动前执行单端校准；初始化还会验证 `Fs <= 4 MSPS` 且 ADC 时钟至少覆盖
+每次 15 周期转换。ADC/DMA 错误只在回调中设置恢复标志，由主循环停止并重新启动采集。
 
 ## 测量与标定
 
@@ -97,11 +96,17 @@ ADC 在首次启动前执行单端校准；ADC/DMA 错误只在回调中设置�
 - 仅检出一条孤立谱线时仍保留诊断结果，但 `signal_valid` 为 0。
 - 峰峰值为整帧原始采样的 `max(samples) - min(samples)`。
 - 真有效值为整帧去直流后的时域 RMS：`sqrt(sum((sample - mean)^2) / N)`。
-- 谱线幅值执行 `2/N` 缩放、Hann 相干增益补偿、插值补偿、电压标定和频响校正。
-- 主循环每 20 ms 尝试分析最新完整块，全部耗时计算均不在中断内执行。
+- 谱线频率先由 Hann 三点插值得到，再以模型
+  `x[n] = dc + a*cos(wn) + b*sin(wn)` 做 Hann 加权最小二乘；峰值幅值为
+  `sqrt(a*a + b*b)`。
+- 电压结果对连续 9 帧去掉一个最大值和最小值后求平均；信号频率族改变时自动清空历史，
+  稳态聚合时间约 360 ms。
+- 谱线幅值最后执行电压标定和分段线性频响校正。
+- 主循环每 40 ms 尝试分析最新完整块，全部耗时计算均不在中断内执行。
 
-默认标定只用于联调，按 3.3 V ADC 参考电压和 1 倍模拟前端增益换算。实机必须用
-标准信号源标定以下参数：
+`main.c` 当前按 PA7 实测的 `110 mVpp / 137 code = 0.802920 mV/code` 做单点标定。
+该参数只是线性换算比例，不会把输入固定为 110 mVpp，适用于题目规定的 50～250 mVpp。
+实机仍必须用标准信号源标定以下参数：
 
 ```c
 signal_measurement_calibration_t calibration = {
@@ -110,6 +115,10 @@ signal_measurement_calibration_t calibration = {
     .rms_gain = 1.0f,
     .spectrum_gain = 1.0f,
     .response_point_count = /* 频响标定点数 */,
+    .response = {
+        {10000U, 1.0f}, /* correction_gain = 标准幅值 / 实测幅值 */
+        /* 最多 6 个频点，按频率严格递增 */
+    },
 };
 ```
 
@@ -169,41 +178,42 @@ cmake --preset Release
 cmake --build --preset Release
 ```
 
-| CMake 选项 | 默认值 | 作用 |
-| --- | --- | --- |
-| `SIGNAL_ENABLE_ADC_DAC_LOOPBACK` | `OFF` | 编译并启用 ADC 到 DAC 回环 |
-
 构建生成 `G474.elf`、`G474.hex`、`G474.bin` 和 `G474.map`。当前构建占用：
 
 | 构建 | RAM | CCMRAM | FLASH |
 | --- | ---: | ---: | ---: |
-| Debug | 56,096 / 98,304 B | 32,768 / 32,768 B | 106,092 / 524,288 B |
-| Release | 56,112 / 98,304 B | 32,768 / 32,768 B | 84,272 / 524,288 B |
+| Debug | 73,112 / 98,304 B | 32,768 / 32,768 B | 112,452 / 524,288 B |
+| Release | 73,112 / 98,304 B | 32,768 / 32,768 B | 80,596 / 524,288 B |
 
-CCMRAM 专用于 4096 点复数 FFT 缓冲区（8192 个 `float`）；Hann 窗、单边幅值谱和
+CCMRAM 专用于 8192 点实数 FFT 缓冲区（偶/奇样本打包为 4096 点复数序列，共
+8192 个 `float`）；Hann 窗由递推振荡器实时生成，不占用窗口数组。单边幅值谱和
 DMA 缓冲区位于主 SRAM。
 
 ## 硬件边界与验收重点
 
-- 2.048 MSPS 对 500 kHz 每周期约采集 4.10 点，已经脱离原 1 MSPS 的奈奎斯特端点问题。
-- PB0 是单极性 ADC 输入，只允许 `0～VDDA`。不能把以 0 V 为中心的双极性正弦直接
+- 3.953 MSPS 对 500 kHz 每周期约采集 7.91 点，显著提高高频端采样相位覆盖。
+- PA7 是单极性 ADC 输入，只允许 `0～VDDA`。不能把以 0 V 为中心的双极性正弦直接
   接入；联调时应把信号发生器 DC Offset 设置为约 1.65 V，或使用交流耦合加 1.65 V
   偏置的模拟前端。软件会自动去除该直流偏置。
-- PB0 处严禁低于 VSSA 或高于 VDDA，否则会触发钳位并可能损坏 MCU。
+- PA7 处严禁低于 VSSA 或高于 VDDA，否则会触发钳位并可能损坏 MCU。
 - `fJ >= 1 MHz` 可能在采样后混叠进 0～500 kHz，数字算法不能无条件恢复。
   BNC 输入后必须设置模拟低通/抗混叠滤波器，并通过实测确定截止频率和阻带衰减。
 - 输入范围只有 50～250 mVpp，应配置低噪声、足够带宽的增益与偏置前端，并保留
   50 Ω 端接方案，否则 ADC 量化噪声和信号源幅值定义会直接影响 ±5 mV 指标。
-- 题目每项要求 2 秒内完成；当前约 2.000 ms 数据块和 20 ms 分析调度有充足的软件
-  时间裕量，最终仍需用 Release 固件检查 `adc_overrun_count == 0`。
-- `G474.ioc` 已移除 SPI2、SPI4、ADC121S101 和 AD9910 引脚配置，并加入
-  PB0/ADC1_IN15、TIM7 TRGO 与 DMA1 Channel 1。当前机器没有 CubeMX 可执行程序，
-  所以旧生成文件中的闲置 SPI 初始化仍保留；下次用 CubeMX 重新生成后会自动清理。
-- CMake 会检测 `Core/Inc/adc.h` 和 `Core/Src/adc.c`：当前缺少 CubeMX ADC 生成文件时
-  Driver 自行配置 ADC/MSP/IRQ；以后 CubeMX 生成这两个文件后会自动切换到生成句柄，
-  避免重复定义 ADC MSP 和 DMA1 Channel 1 中断。
+- 题目每项要求 2 秒内完成；当前约 2.072 ms 数据块、40 ms 分析调度和约 360 ms
+  九帧稳健聚合仍有充足裕量。2026-07-30 Release 板测连续 59 帧的分析耗时中位数为
+  `17.816 ms`、最大值为 `17.827 ms`，且 `adc_overrun_count` 始终为 0。
+- `G474.ioc` 已配置 PA7/ADC2_IN4、TIM7 TRGO 与 DMA2 Channel 2。当前机器没有
+  CubeMX 可执行程序，后续调整外设后应重新生成并复查 USER CODE 区域接入点。
+- 当前生成文件仍保留旧 ADC1 初始化调用；ADC2 完整接入暂存在 `adc.c/.h` 的 USER CODE
+  区，运行时以 ADC2 为唯一采集源。下次 CubeMX 重新生成后会由 `G474.ioc` 正式生成
+  ADC2、PA7 和 DMA2 Channel 2 配置，业务 Driver 接口无需变化。
+- CubeMX 正式生成 `hadc2`、`hdma_adc2`、`MX_ADC2_Init()` 和 DMA2 中断后，必须删除或条件
+  关闭 `adc.c/.h` USER CODE 区中的同名临时兼容实现，否则会出现重复定义；同时移除
+  `main.c` USER CODE 区用于屏蔽 `MX_ADC1_Init()` 的宏以及旧 DMA1 中断禁用语句。
 
 ## 总结
 
-当前 PB0/ADC1_IN15 + 标称 2.048 MSPS + 4096 点方案的频率栅格为 500 Hz。项目下一阶段的关键是完成 1.65 V
-偏置、模拟抗混叠前端和全频段电压标定。
+当前 PA7/ADC2_IN4 + 3.953488 MSPS + 8192 点方案的频率栅格约为 482.604 Hz；
+幅值采用精确频点加权最小二乘和九帧稳健聚合。达到 ±5 mV 的最后关键仍是完成
+1.65 V 偏置、模拟抗混叠前端和 10 kHz～500 kHz 全频段实机标定。

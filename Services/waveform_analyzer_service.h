@@ -32,6 +32,7 @@ typedef struct {
     uint16_t peak_bins[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_frequencies_hz[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_amplitudes_code[WAVEFORM_ANALYZER_PEAK_COUNT];
+    float peak_phases_rad[WAVEFORM_ANALYZER_PEAK_COUNT];
 } waveform_analyzer_result_t;
 
 HAL_StatusTypeDef Waveform_Analyzer_Init(uint32_t sample_rate_hz);
