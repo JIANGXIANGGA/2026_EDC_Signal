@@ -124,6 +124,9 @@
 #define TJC_SCREEN_MEAS_COMPONENT3_HZ "page0.va9"
 #define TJC_SCREEN_MEAS_COMPONENT3_AMPLITUDE "page0.va10"
 #define TJC_SCREEN_MEAS_WAVEFORM_CYCLES "page0.va11"
+/* 基波阶次固定为 1，串口屏只显示后两条谱线的谐波阶次。 */
+#define TJC_SCREEN_MEAS_COMPONENT2_ORDER "page0.va12"
+#define TJC_SCREEN_MEAS_COMPONENT3_ORDER "page0.va13"
 
 /* 页面 1：AD9910 信号源参数。 */
 #define TJC_SCREEN_GENERATOR_PAGE_ID 1U

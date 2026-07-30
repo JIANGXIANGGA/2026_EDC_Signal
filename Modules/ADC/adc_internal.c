@@ -98,7 +98,7 @@ static HAL_StatusTypeDef adc_internal_configure_peripheral(void)
 
     channel_config.Channel = ADC_CHANNEL_15;
     channel_config.Rank = ADC_REGULAR_RANK_1;
-    channel_config.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+    channel_config.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
     channel_config.SingleDiff = ADC_SINGLE_ENDED;
     channel_config.OffsetNumber = ADC_OFFSET_NONE;
     channel_config.Offset = 0U;

@@ -52,7 +52,6 @@ typedef struct {
     uint32_t dac_loopback_dropped_block_count;
     uint32_t dac_loopback_error_count;
     uint8_t fft_ready;
-    waveform_analyzer_type_t waveform_type;
     uint32_t fft_analysis_count;
     uint32_t fft_sample_rate_hz;
     float fft_bin_resolution_hz;
@@ -60,7 +59,6 @@ typedef struct {
     uint16_t waveform_peak_to_peak_code;
     uint16_t waveform_average_code;
     float waveform_rms_code;
-    float waveform_thd_percent;
     signal_measurement_result_t measurement;
 } signal_acquisition_status_t;
 

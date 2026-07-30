@@ -7,6 +7,7 @@
 #include "waveform_analyzer_service.h"
 
 #define SIGNAL_ACQUISITION_ANALYSIS_INTERVAL_MS 20U
+#define SIGNAL_ACQUISITION_FFT_SAMPLE_RATE_HZ 2048000U
 
 #if SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK
 #include "adc_dac_loopback_service.h"
@@ -106,7 +107,6 @@ static void signal_acquisition_update_status(void)
     }
 
     g_signal_acquisition_status.fft_ready = fft_result->result_ready;
-    g_signal_acquisition_status.waveform_type = fft_result->waveform_type;
     g_signal_acquisition_status.fft_analysis_count =
         fft_result->analysis_count;
     g_signal_acquisition_status.fft_sample_rate_hz =
@@ -120,8 +120,6 @@ static void signal_acquisition_update_status(void)
     g_signal_acquisition_status.waveform_average_code =
         fft_result->average_code;
     g_signal_acquisition_status.waveform_rms_code = fft_result->rms_code;
-    g_signal_acquisition_status.waveform_thd_percent =
-        fft_result->thd_percent;
     g_signal_acquisition_status.adc_last_min = fft_result->min_code;
     g_signal_acquisition_status.adc_last_max = fft_result->max_code;
     g_signal_acquisition_status.adc_last_average =
@@ -150,9 +148,6 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
     uint32_t adc_sample_rate_hz;
 
     g_signal_acquisition_status = (signal_acquisition_status_t){0};
-    g_signal_acquisition_status.waveform_type =
-        WAVEFORM_ANALYZER_TYPE_UNKNOWN;
-
     if ((config == NULL) || (config->adc_timer == NULL)) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
@@ -185,7 +180,7 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
             status);
     }
 
-    status = Waveform_Analyzer_Init(adc_sample_rate_hz);
+    status = Waveform_Analyzer_Init(SIGNAL_ACQUISITION_FFT_SAMPLE_RATE_HZ);
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ANALYZER_INIT,

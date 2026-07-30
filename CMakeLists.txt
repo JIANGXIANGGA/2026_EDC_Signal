@@ -69,12 +69,13 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Services/signal_measurement_service.c
     Services/usart_hmi_service.c
     Services/waveform_analyzer_service.c
+    Services/fft.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
+    Drivers/CMSIS/DSP/Source/CommonTables/arm_const_structs.c
+    Drivers/CMSIS/DSP/Source/ComplexMathFunctions/arm_cmplx_mag_f32.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_f32.c
     Drivers/CMSIS/DSP/Source/TransformFunctions/arm_cfft_radix8_f32.c
-    Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_f32.c
-    Drivers/CMSIS/DSP/Source/TransformFunctions/arm_rfft_fast_init_f32.c
     App/signal_app.c
     App/signal_hmi_app.c
 )
@@ -111,9 +112,8 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     ARM_MATH_LOOPUNROLL
     ARM_DSP_CONFIG_TABLES
     ARM_FFT_ALLOW_TABLES
-    ARM_TABLE_TWIDDLECOEF_F32_2048
-    ARM_TABLE_BITREVIDX_FLT_2048
-    ARM_TABLE_TWIDDLECOEF_RFFT_F32_4096
+    ARM_TABLE_TWIDDLECOEF_F32_4096
+    ARM_TABLE_BITREVIDX_FLT_4096
     SIGNAL_ACQUISITION_ENABLE_DAC_LOOPBACK=$<BOOL:${SIGNAL_ENABLE_ADC_DAC_LOOPBACK}>
 )
 

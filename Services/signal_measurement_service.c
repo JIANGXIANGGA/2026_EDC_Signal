@@ -5,7 +5,6 @@
 
 #define SIGNAL_MEASUREMENT_ADC_MAX_CODE 4095.0f
 #define SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV 20.0f
-#define SIGNAL_MEASUREMENT_SMOOTHING_ALPHA 0.25f
 #define SIGNAL_MEASUREMENT_HARMONIC_TOLERANCE_HZ 1000.0f
 
 typedef struct {
@@ -81,18 +80,6 @@ static float signal_measurement_response_gain(float frequency_hz)
         .correction_gain;
 }
 
-static float signal_measurement_filter(float previous,
-                                       float current,
-                                       uint8_t reset)
-{
-    if (reset != 0U) {
-        return current;
-    }
-
-    return previous +
-           (SIGNAL_MEASUREMENT_SMOOTHING_ALPHA * (current - previous));
-}
-
 static uint8_t signal_measurement_harmonic_order(float frequency_hz,
                                                  float fundamental_hz)
 {
@@ -124,6 +111,9 @@ static uint8_t signal_measurement_matches_harmonic(
     float error_hz;
 
     if (order == 0U) {
+        return 0U;
+    }
+    if (((float)order * fundamental_hz) > FFT_MAX_FREQUENCY_HZ) {
         return 0U;
     }
     if ((2.0f * bin_resolution_hz) > tolerance_hz) {
@@ -300,8 +290,6 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
     const waveform_analyzer_result_t *analysis)
 {
     signal_measurement_result_t next = {0};
-    float spectrum_square_sum = 0.0f;
-    uint8_t reset_filter;
     uint8_t component_count;
     uint8_t selected_indices[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0U};
 
@@ -316,11 +304,6 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
 
     component_count = signal_measurement_select_harmonic_family(
         analysis, selected_indices);
-    reset_filter = ((g_signal_measurement.result.result_ready == 0U) ||
-                    (g_signal_measurement.result.component_count !=
-                     component_count)) ?
-                       1U :
-                       0U;
 
     next.initialized = 1U;
     next.result_ready = 1U;
@@ -355,7 +338,6 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
         component->valid = 1U;
         component->frequency_hz = frequency_hz;
         component->amplitude_mv = amplitude_mv;
-        spectrum_square_sum += amplitude_mv * amplitude_mv;
     }
 
     if (component_count > 0U) {
@@ -367,46 +349,15 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
                     next.components[index].frequency_hz,
                     next.fundamental_frequency_hz);
         }
-        next.true_rms_mv =
-            sqrtf(spectrum_square_sum * 0.5f) *
-            g_signal_measurement.calibration.rms_gain;
-    } else {
-        next.true_rms_mv = next.raw_rms_mv;
     }
+    next.true_rms_mv = next.raw_rms_mv;
 
     next.signal_valid =
         ((next.peak_to_peak_mv >=
           SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV) &&
-         (component_count > 0U) && (next.clipped == 0U)) ?
+         (component_count >= 2U) && (next.clipped == 0U)) ?
             1U :
             0U;
-
-    next.peak_to_peak_mv = signal_measurement_filter(
-        g_signal_measurement.result.peak_to_peak_mv,
-        next.peak_to_peak_mv,
-        reset_filter);
-    next.true_rms_mv = signal_measurement_filter(
-        g_signal_measurement.result.true_rms_mv,
-        next.true_rms_mv,
-        reset_filter);
-    next.raw_rms_mv = signal_measurement_filter(
-        g_signal_measurement.result.raw_rms_mv,
-        next.raw_rms_mv,
-        reset_filter);
-    next.fundamental_frequency_hz = signal_measurement_filter(
-        g_signal_measurement.result.fundamental_frequency_hz,
-        next.fundamental_frequency_hz,
-        reset_filter);
-    for (uint8_t index = 0U; index < component_count; ++index) {
-        next.components[index].frequency_hz = signal_measurement_filter(
-            g_signal_measurement.result.components[index].frequency_hz,
-            next.components[index].frequency_hz,
-            reset_filter);
-        next.components[index].amplitude_mv = signal_measurement_filter(
-            g_signal_measurement.result.components[index].amplitude_mv,
-            next.components[index].amplitude_mv,
-            reset_filter);
-    }
 
     g_signal_measurement.observed_analysis_count =
         analysis->analysis_count;

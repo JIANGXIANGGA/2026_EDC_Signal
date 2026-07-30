@@ -3,22 +3,13 @@
 
 #include <stdint.h>
 
+#include "fft.h"
 #include "stm32g4xx_hal.h"
 
-#define WAVEFORM_ANALYZER_FFT_SIZE 4096U
-#define WAVEFORM_ANALYZER_BIN_COUNT (WAVEFORM_ANALYZER_FFT_SIZE / 2U)
+#define WAVEFORM_ANALYZER_FFT_SIZE FFT_LENGTH
+#define WAVEFORM_ANALYZER_BIN_COUNT FFT_BIN_COUNT
 #define WAVEFORM_ANALYZER_PEAK_COUNT 6U
-/* 题目允许的最大 FFT 频率栅格间隔。 */
 #define WAVEFORM_ANALYZER_MAX_BIN_RESOLUTION_HZ 500U
-
-typedef enum {
-    WAVEFORM_ANALYZER_TYPE_UNKNOWN = 0,
-    WAVEFORM_ANALYZER_TYPE_DC,
-    WAVEFORM_ANALYZER_TYPE_SINE,
-    WAVEFORM_ANALYZER_TYPE_SQUARE,
-    WAVEFORM_ANALYZER_TYPE_TRIANGLE,
-    WAVEFORM_ANALYZER_TYPE_SAWTOOTH
-} waveform_analyzer_type_t;
 
 typedef struct {
     uint8_t initialized;
@@ -26,7 +17,6 @@ typedef struct {
     uint32_t analysis_count;
     uint32_t sample_rate_hz;
     float bin_resolution_hz;
-    waveform_analyzer_type_t waveform_type;
     uint8_t clipped_low;
     uint8_t clipped_high;
     uint16_t min_code;
@@ -38,14 +28,7 @@ typedef struct {
     uint16_t fundamental_bin;
     float fundamental_frequency_hz;
     float fundamental_amplitude_code;
-    float harmonic2_percent;
-    float harmonic3_percent;
-    float harmonic4_percent;
-    float harmonic5_percent;
-    float thd_percent;
-    float duty_percent;
     uint8_t peak_count;
-    /* 有效谱线按频率从低到高排列，第一条即基波。 */
     uint16_t peak_bins[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_frequencies_hz[WAVEFORM_ANALYZER_PEAK_COUNT];
     float peak_amplitudes_code[WAVEFORM_ANALYZER_PEAK_COUNT];
