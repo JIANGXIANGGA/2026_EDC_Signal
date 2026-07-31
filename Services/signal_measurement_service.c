@@ -3,12 +3,14 @@
 #include <math.h>
 #include <stddef.h>
 
+#include "signal_reconstruction_service.h"
+
 #define SIGNAL_MEASUREMENT_ADC_MAX_CODE 4095.0f
 #define SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV 20.0f
+#define SIGNAL_MEASUREMENT_MIN_COMPONENT_PEAK_MV 5.0f
 #define SIGNAL_MEASUREMENT_HARMONIC_TOLERANCE_HZ 1000.0f
 #define SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ 250.0f
 #define SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT 1000U
-#define SIGNAL_MEASUREMENT_TWO_PI 6.28318530717958647692f
 
 typedef struct {
     uint8_t initialized;
@@ -290,67 +292,21 @@ static float signal_measurement_calculate_true_rms(
 static float signal_measurement_reconstruct_zero_phase_peak_to_peak(
     const signal_measurement_result_t *measurement)
 {
-    float sine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
-    float cosine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {
-        1.0f, 1.0f, 1.0f
-    };
-    float step_sine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
-    float step_cosine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
-    float minimum = 0.0f;
-    float maximum = 0.0f;
-
-    if ((measurement == NULL) || (measurement->component_count == 0U)) {
-        return 0.0f;
-    }
-
-    for (uint8_t index = 0U;
-         index < measurement->component_count;
-         ++index) {
-        const uint8_t order = measurement->components[index].harmonic_order;
-        const float step = SIGNAL_MEASUREMENT_TWO_PI * (float)order /
-                           (float)SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT;
-
-        if (order == 0U) {
-            return 0.0f;
-        }
-        step_sine[index] = sinf(step);
-        step_cosine[index] = cosf(step);
-    }
+    float minimum;
+    float maximum;
 
     /*
-     * 本轮信号源各频率分量初相均为 0。采样起点只会造成统一的时间平移，
-     * 不改变峰峰值，因此按谐波阶次重构一个完整周期即可恢复低通前 Upp。
-     * 正余弦递推避免在主循环内重复调用大量 sinf()。
+     * 只使用 10 kHz～500 kHz 的有效谐波重构，因此既可恢复低通前 Upp，
+     * 又不会把第三问中不低于 1 MHz 的单频干扰带入测量结果。
      */
-    for (uint32_t point = 0U;
-         point < SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT;
-         ++point) {
-        float value = 0.0f;
-
-        for (uint8_t index = 0U;
-             index < measurement->component_count;
-             ++index) {
-            value += measurement->components[index].amplitude_mv * sine[index];
-        }
-        if (value < minimum) {
-            minimum = value;
-        }
-        if (value > maximum) {
-            maximum = value;
-        }
-
-        for (uint8_t index = 0U;
-             index < measurement->component_count;
-             ++index) {
-            const float next_sine =
-                (sine[index] * step_cosine[index]) +
-                (cosine[index] * step_sine[index]);
-            const float next_cosine =
-                (cosine[index] * step_cosine[index]) -
-                (sine[index] * step_sine[index]);
-            sine[index] = next_sine;
-            cosine[index] = next_cosine;
-        }
+    if (Signal_Reconstruction_Service_Generate(
+            measurement,
+            1U,
+            NULL,
+            SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT,
+            &minimum,
+            &maximum) == 0U) {
+        return 0.0f;
     }
 
     return maximum - minimum;
@@ -567,7 +523,8 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
     const waveform_analyzer_result_t *analysis)
 {
     signal_measurement_result_t next = {0};
-    uint8_t component_count;
+    uint8_t selected_count;
+    uint8_t component_count = 0U;
     uint8_t selected_indices[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0U};
 
     if ((g_signal_measurement.initialized == 0U) ||
@@ -579,12 +536,11 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
         return HAL_OK;
     }
 
-    component_count = signal_measurement_select_harmonic_family(
+    selected_count = signal_measurement_select_harmonic_family(
         analysis, selected_indices);
 
     next.initialized = 1U;
     next.result_ready = 1U;
-    next.component_count = component_count;
     next.measurement_count =
         g_signal_measurement.result.measurement_count + 1U;
     next.clipped = ((analysis->clipped_low != 0U) ||
@@ -600,9 +556,7 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
         g_signal_measurement.calibration.input_mv_per_code *
         g_signal_measurement.calibration.rms_gain;
 
-    for (uint8_t index = 0U; index < component_count; ++index) {
-        signal_measurement_component_t *component =
-            &next.components[index];
+    for (uint8_t index = 0U; index < selected_count; ++index) {
         const uint8_t analysis_index = selected_indices[index];
         const float frequency_hz =
             analysis->peak_frequencies_hz[analysis_index];
@@ -611,11 +565,24 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
             g_signal_measurement.calibration.input_mv_per_code *
             g_signal_measurement.calibration.spectrum_gain *
             signal_measurement_response_gain(frequency_hz);
+        signal_measurement_component_t *component;
 
+        /*
+         * 低于题目 5 mV 绝对误差限的候选峰按零幅值处理，可抑制高频
+         * 干扰经模拟链路产生的微弱杂散，同时保留本项目实测最小 7.2 mV
+         * 的有效分量。阈值在频响补偿后判断，保证全频段口径一致。
+         */
+        if (amplitude_mv < SIGNAL_MEASUREMENT_MIN_COMPONENT_PEAK_MV) {
+            continue;
+        }
+
+        component = &next.components[component_count];
         component->valid = 1U;
         component->frequency_hz = frequency_hz;
         component->amplitude_mv = amplitude_mv;
+        component_count++;
     }
+    next.component_count = component_count;
 
     if (component_count > 0U) {
         next.fundamental_frequency_hz =

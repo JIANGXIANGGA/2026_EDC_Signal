@@ -1,0 +1,1116 @@
+{
+  "generated_at": "2026-08-01 02:49:58",
+  "serial_port": "COM14",
+  "serial_baud": 460800,
+  "ub_fundamental_hz": 250000,
+  "ub_vpp_mv": 250.0,
+  "ub_terms": [
+    [
+      1,
+      1.0
+    ],
+    [
+      2,
+      0.7
+    ]
+  ],
+  "jammer_vpp_mv": 200.0,
+  "jammer_frequency_min_hz": 1000000,
+  "jammer_frequency_max_hz": 20000000,
+  "jammer_frequency_step_hz": 1000000,
+  "voltage_error_limit_mv": 5.0,
+  "frequency_error_limit_hz": 1000.0,
+  "time_limit_s": 2.0,
+  "summary": {
+    "case_count": 20,
+    "pass_count": 20,
+    "maximum_abs_upp_error_mv": 2.5,
+    "maximum_abs_rms_error_mv": 0.713424686925265,
+    "maximum_component_peak_error_mv": 0.7400242555963246,
+    "maximum_frequency_error_hz": 3.0,
+    "maximum_measurement_elapsed_s": 1.3439999999973224,
+    "adc_overrun_max": 0
+  },
+  "results": [
+    {
+      "name": "jammer_01mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 1000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 363.0251713230084,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 252.5,
+      "upp_error_mv": 2.5,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.7,
+      "rms_error_mv": 0.713424686925265,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2180000000007567,
+      "maximum_component_peak_error_mv": 0.7400242555963246,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.3
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.9
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.3,
+          "peak_error_mv": 0.7400242555963246
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.9,
+          "peak_error_mv": 0.7080169789174349
+        }
+      ]
+    },
+    {
+      "name": "jammer_02mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 2000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.9688556598328,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 252.2,
+      "upp_error_mv": 2.1999999999999886,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.6,
+      "rms_error_mv": 0.6134246869252564,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.25,
+      "maximum_component_peak_error_mv": 0.6400242555963302,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.2
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.8
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.2,
+          "peak_error_mv": 0.6400242555963302
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.8,
+          "peak_error_mv": 0.6080169789174334
+        }
+      ]
+    },
+    {
+      "name": "jammer_03mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 3000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 440.13467898352957,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 252.3,
+      "upp_error_mv": 2.3000000000000114,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.6,
+      "rms_error_mv": 0.6134246869252564,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.3280000000013388,
+      "maximum_component_peak_error_mv": 0.6400242555963302,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.2
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.8
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.2,
+          "peak_error_mv": 0.6400242555963302
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.8,
+          "peak_error_mv": 0.6080169789174334
+        }
+      ]
+    },
+    {
+      "name": "jammer_04mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 4000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 446.8409417445612,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 252.0,
+      "upp_error_mv": 2.0,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.6,
+      "rms_error_mv": 0.6134246869252564,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2969999999986612,
+      "maximum_component_peak_error_mv": 0.6400242555963302,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.2
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.7
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.2,
+          "peak_error_mv": 0.6400242555963302
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.7,
+          "peak_error_mv": 0.5080169789174391
+        }
+      ]
+    },
+    {
+      "name": "jammer_05mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 5000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.34198396781915,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.4,
+      "upp_error_mv": 1.4000000000000057,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.264999999999418,
+      "maximum_component_peak_error_mv": 0.5400242555963217,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.1
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.4
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.1,
+          "peak_error_mv": 0.5400242555963217
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.4,
+          "peak_error_mv": 0.20801697891743487
+        }
+      ]
+    },
+    {
+      "name": "jammer_06mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 6000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 445.61982987608667,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 250.8,
+      "upp_error_mv": 0.8000000000000114,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.3,
+      "rms_error_mv": 0.31342468692525927,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.235000000000582,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.2
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.2,
+          "peak_error_mv": 0.008016978917439133
+        }
+      ]
+    },
+    {
+      "name": "jammer_07mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 7000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.55210858704135,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 250.7,
+      "upp_error_mv": 0.6999999999999886,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.2,
+      "rms_error_mv": 0.21342468692526495,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2809999999954016,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.2
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.2,
+          "peak_error_mv": 0.008016978917439133
+        }
+      ]
+    },
+    {
+      "name": "jammer_08mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 8000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.4582099261686,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 250.5,
+      "upp_error_mv": 0.5,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.2,
+      "rms_error_mv": 0.21342468692526495,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2810000000026776,
+      "maximum_component_peak_error_mv": 0.3400242555963331,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 84.9
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.1
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 84.9,
+          "peak_error_mv": 0.3400242555963331
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.1,
+          "peak_error_mv": -0.09198302108256229
+        }
+      ]
+    },
+    {
+      "name": "jammer_09mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 9000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.4232193793866,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 250.7,
+      "upp_error_mv": 0.6999999999999886,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.2,
+      "rms_error_mv": 0.21342468692526495,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.3280000000013388,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.2
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.2,
+          "peak_error_mv": 0.008016978917439133
+        }
+      ]
+    },
+    {
+      "name": "jammer_10mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 10000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.589992504724,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 250.9,
+      "upp_error_mv": 0.9000000000000057,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.3,
+      "rms_error_mv": 0.31342468692525927,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2819999999992433,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.3
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.3,
+          "peak_error_mv": 0.10801697891743345
+        }
+      ]
+    },
+    {
+      "name": "jammer_11mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 11000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.9146557897738,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.1,
+      "upp_error_mv": 1.0999999999999943,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.3,
+      "rms_error_mv": 0.31342468692525927,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.25,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.4
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.4,
+          "peak_error_mv": 0.20801697891743487
+        }
+      ]
+    },
+    {
+      "name": "jammer_12mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 12000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.54826008201485,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.0,
+      "upp_error_mv": 1.0,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.3,
+      "rms_error_mv": 0.31342468692525927,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2960000000020955,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.4
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.4,
+          "peak_error_mv": 0.20801697891743487
+        }
+      ]
+    },
+    {
+      "name": "jammer_13mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 13000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.68472339538783,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.3,
+      "upp_error_mv": 1.3000000000000114,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2039999999979045,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.5
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.5,
+          "peak_error_mv": 0.3080169789174363
+        }
+      ]
+    },
+    {
+      "name": "jammer_14mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 14000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.9146557897742,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.4,
+      "upp_error_mv": 1.4000000000000057,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.3439999999973224,
+      "maximum_component_peak_error_mv": 0.5400242555963217,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.1
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.5
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.1,
+          "peak_error_mv": 0.5400242555963217
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.5,
+          "peak_error_mv": 0.3080169789174363
+        }
+      ]
+    },
+    {
+      "name": "jammer_15mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 15000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.4907044420213,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.4,
+      "upp_error_mv": 1.4000000000000057,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.3280000000013388,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.5
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.5,
+          "peak_error_mv": 0.3080169789174363
+        }
+      ]
+    },
+    {
+      "name": "jammer_16mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 16000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.51505854037003,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.5,
+      "upp_error_mv": 1.5,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2810000000026776,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.6
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.6,
+          "peak_error_mv": 0.4080169789174377
+        }
+      ]
+    },
+    {
+      "name": "jammer_17mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 17000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.28631334525335,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.6,
+      "upp_error_mv": 1.5999999999999943,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.5,
+      "rms_error_mv": 0.5134246869252621,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2030000000013388,
+      "maximum_component_peak_error_mv": 0.5400242555963217,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.1
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.6
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.1,
+          "peak_error_mv": 0.5400242555963217
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.6,
+          "peak_error_mv": 0.4080169789174377
+        }
+      ]
+    },
+    {
+      "name": "jammer_18mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 18000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 448.7069089230713,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.6,
+      "upp_error_mv": 1.5999999999999943,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.1880000000019209,
+      "maximum_component_peak_error_mv": 0.5400242555963217,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.1
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.6
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.1,
+          "peak_error_mv": 0.5400242555963217
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.6,
+          "peak_error_mv": 0.4080169789174377
+        }
+      ]
+    },
+    {
+      "name": "jammer_19mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 19000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.061134017055,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.5,
+      "upp_error_mv": 1.5,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2810000000026776,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.6
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.6,
+          "peak_error_mv": 0.4080169789174377
+        }
+      ]
+    },
+    {
+      "name": "jammer_20mhz",
+      "fundamental_hz": 250000,
+      "ub_vpp_mv": 250.0,
+      "jammer_frequency_hz": 20000000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 449.40664376504697,
+      "expected_upp_mv": 250.0,
+      "measured_upp_mv": 251.6,
+      "upp_error_mv": 1.5999999999999943,
+      "expected_rms_mv": 72.98657531307474,
+      "measured_rms_mv": 73.4,
+      "rms_error_mv": 0.4134246869252678,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.25,
+      "maximum_component_peak_error_mv": 0.4400242555963274,
+      "maximum_frequency_error_hz": 3.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 250003.0,
+          "peak_mv": 85.0
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.6
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 250000.0,
+          "peak_mv": 84.55997574440367,
+          "measured_frequency_hz": 250003.0,
+          "frequency_error_hz": 3.0,
+          "measured_peak_mv": 85.0,
+          "peak_error_mv": 0.4400242555963274
+        },
+        {
+          "order": 2,
+          "frequency_hz": 500000.0,
+          "peak_mv": 59.191983021082564,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 59.6,
+          "peak_error_mv": 0.4080169789174377
+        }
+      ]
+    }
+  ]
+}

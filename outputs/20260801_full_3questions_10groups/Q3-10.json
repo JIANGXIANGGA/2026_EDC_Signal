@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-08-01 03:08:44",
+  "serial_port": "COM14",
+  "serial_baud": 460800,
+  "jammer_vpp_mv": 200.0,
+  "voltage_error_limit_mv": 5.0,
+  "frequency_error_limit_hz": 1000.0,
+  "time_limit_s": 2.0,
+  "summary": {
+    "case_count": 1,
+    "pass_count": 1,
+    "maximum_abs_upp_error_mv": 0.3999999999999986,
+    "maximum_abs_rms_error_mv": 0.10826549062247004,
+    "maximum_component_peak_error_mv": 0.13407823330165414,
+    "maximum_frequency_error_hz": 1.0,
+    "maximum_measurement_elapsed_s": 1.2819999999992433,
+    "adc_overrun_max": 0
+  },
+  "results": [
+    {
+      "name": "upper_band_2tone_1p25mhz",
+      "fundamental_hz": 125000,
+      "ub_vpp_mv": 50.0,
+      "jammer_frequency_hz": 1250000,
+      "jammer_vpp_mv": 200.0,
+      "generator_total_vpp_mv": 247.76296990730802,
+      "expected_upp_mv": 50.0,
+      "measured_upp_mv": 50.4,
+      "upp_error_mv": 0.3999999999999986,
+      "expected_rms_mv": 13.09173450937753,
+      "measured_rms_mv": 13.2,
+      "rms_error_mv": 0.10826549062247004,
+      "measured_component_count": 2,
+      "signal_valid": 1,
+      "adc_overrun_max": 0,
+      "strict_match": true,
+      "measurement_elapsed_s": 1.2819999999992433,
+      "maximum_component_peak_error_mv": 0.13407823330165414,
+      "maximum_frequency_error_hz": 1.0,
+      "pass": true,
+      "detected_components": [
+        {
+          "order": 1,
+          "frequency_hz": 125001.0,
+          "peak_mv": 14.5
+        },
+        {
+          "order": 4,
+          "frequency_hz": 500000.0,
+          "peak_mv": 11.7
+        }
+      ],
+      "components": [
+        {
+          "order": 1,
+          "frequency_hz": 125000.0,
+          "peak_mv": 14.45740220837293,
+          "measured_frequency_hz": 125001.0,
+          "frequency_error_hz": 1.0,
+          "measured_peak_mv": 14.5,
+          "peak_error_mv": 0.042597791627070336
+        },
+        {
+          "order": 4,
+          "frequency_hz": 500000.0,
+          "peak_mv": 11.565921766698345,
+          "measured_frequency_hz": 500000.0,
+          "frequency_error_hz": 0.0,
+          "measured_peak_mv": 11.7,
+          "peak_error_mv": 0.13407823330165414
+        }
+      ]
+    }
+  ]
+}

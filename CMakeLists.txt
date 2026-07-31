@@ -65,6 +65,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Modules/VOFA/vofa_uart_driver.c
     Services/signal_acquisition_service.c
     Services/signal_measurement_service.c
+    Services/signal_reconstruction_service.c
     Services/usart_hmi_service.c
     Services/vofa_telemetry_service.c
     Services/waveform_analyzer_service.c

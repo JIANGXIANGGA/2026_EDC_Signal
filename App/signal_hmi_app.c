@@ -2,12 +2,11 @@
 
 #include <stddef.h>
 
-#include "signal_acquisition_service.h"
 #include "signal_measurement_service.h"
+#include "signal_reconstruction_service.h"
 #include "tjc_screen_config.h"
 #include "tjc_uart_driver.h"
 #include "usart_hmi_service.h"
-#include "waveform_analyzer_service.h"
 
 #define ONE_HMI_STARTUP_DELAY_MS 800U
 #define ONE_HMI_LINK_TIMEOUT_MS 2000U
@@ -15,7 +14,6 @@
 #define ONE_HMI_WAVEFORM_REFRESH_MS 250U
 #define ONE_HMI_WAVEFORM_PAGE_TIMEOUT_MS 200U
 #define ONE_HMI_WAVEFORM_TRANSFER_TIMEOUT_MS 1000U
-#define ONE_HMI_WAVEFORM_MIN_SAMPLES_PER_CYCLE 2U
 #define ONE_HMI_TIME_DISPLAY_MIN 16U
 #define ONE_HMI_TIME_DISPLAY_MAX 239U
 #define ONE_HMI_SPECTRUM_DISPLAY_MIN 8U
@@ -51,6 +49,7 @@ typedef struct {
     uint8_t measurement_publish_active;
     uint8_t measurement_field_index;
     signal_measurement_result_t measurement_snapshot;
+    float waveform_reconstructed_mv[TJC_SCREEN_PLOT_POINT_COUNT];
     uint8_t waveform_points[TJC_SCREEN_PLOT_POINT_COUNT];
     signal_hmi_status_t status;
 } one_hmi_context_t;
@@ -138,122 +137,30 @@ static HAL_StatusTypeDef one_hmi_waveform_fail(HAL_StatusTypeDef status)
     return status;
 }
 
-static uint32_t one_hmi_waveform_get_source_span(
-    const waveform_analyzer_result_t *analysis,
-    uint32_t sample_count)
+static uint8_t one_hmi_waveform_scale_sample(float sample_mv,
+                                              float minimum_mv,
+                                              float maximum_mv)
 {
-    const signal_measurement_result_t *measurement =
-        Signal_Measurement_Service_GetResult();
-    uint32_t frequency_hz;
-    uint32_t minimum_span;
-    uint64_t span;
+    const float display_span =
+        (float)(ONE_HMI_TIME_DISPLAY_MAX - ONE_HMI_TIME_DISPLAY_MIN);
+    float scaled;
 
-    if ((analysis == NULL) || (analysis->result_ready == 0U) ||
-        (analysis->sample_rate_hz == 0U)) {
-        return sample_count;
-    }
-
-    if ((measurement != NULL) && (measurement->result_ready != 0U) &&
-        (measurement->fundamental_frequency_hz >= 1.0f)) {
-        frequency_hz = (uint32_t)(
-            measurement->fundamental_frequency_hz + 0.5f);
-    } else if (analysis->fundamental_frequency_hz >= 1.0f) {
-        frequency_hz = (uint32_t)(
-            analysis->fundamental_frequency_hz + 0.5f);
-    } else {
-        return sample_count;
-    }
-    if (frequency_hz == 0U) {
-        return sample_count;
-    }
-
-    span = (((uint64_t)analysis->sample_rate_hz *
-             g_one_hmi.status.waveform_cycles) +
-            (frequency_hz / 2U)) /
-           frequency_hz;
-    minimum_span =
-        (uint32_t)g_one_hmi.status.waveform_cycles *
-        ONE_HMI_WAVEFORM_MIN_SAMPLES_PER_CYCLE;
-    if (span < minimum_span) {
-        span = minimum_span;
-    }
-    if (span > sample_count) {
-        span = sample_count;
-    }
-
-    return (uint32_t)span;
-}
-
-static uint32_t one_hmi_waveform_find_trigger(
-    const uint16_t *samples,
-    uint32_t sample_count,
-    uint32_t source_span,
-    uint16_t threshold)
-{
-    uint32_t max_start;
-
-    if (source_span >= sample_count) {
-        return 0U;
-    }
-
-    max_start = sample_count - source_span;
-    for (uint32_t index = 1U; index <= max_start; ++index) {
-        if ((samples[index - 1U] <= threshold) &&
-            (samples[index] > threshold)) {
-            return index;
-        }
-    }
-
-    return 0U;
-}
-
-static uint16_t one_hmi_waveform_interpolate(
-    const uint16_t *samples,
-    uint32_t source_start,
-    uint32_t source_span,
-    uint16_t point_index)
-{
-    const uint32_t denominator = TJC_SCREEN_PLOT_POINT_COUNT - 1U;
-    const uint64_t position =
-        (uint64_t)point_index * (uint64_t)(source_span - 1U);
-    const uint32_t source_offset = (uint32_t)(position / denominator);
-    const uint32_t remainder = (uint32_t)(position % denominator);
-    const uint32_t first_index = source_start + source_offset;
-    const uint32_t second_index =
-        (source_offset + 1U < source_span) ? first_index + 1U : first_index;
-    const uint32_t first_weight = denominator - remainder;
-
-    return (uint16_t)((((uint32_t)samples[first_index] * first_weight) +
-                       ((uint32_t)samples[second_index] * remainder) +
-                       (denominator / 2U)) /
-                      denominator);
-}
-
-static uint8_t one_hmi_waveform_scale_sample(uint16_t sample,
-                                               uint16_t min_sample,
-                                               uint16_t max_sample)
-{
-    const uint32_t display_span =
-        ONE_HMI_TIME_DISPLAY_MAX - ONE_HMI_TIME_DISPLAY_MIN;
-    uint32_t scaled;
-
-    if (max_sample <= min_sample) {
+    if (maximum_mv <= minimum_mv) {
         return (uint8_t)((ONE_HMI_TIME_DISPLAY_MIN +
                           ONE_HMI_TIME_DISPLAY_MAX) /
                          2U);
     }
 
-    if (sample < min_sample) {
-        sample = min_sample;
-    } else if (sample > max_sample) {
-        sample = max_sample;
+    if (sample_mv < minimum_mv) {
+        sample_mv = minimum_mv;
+    } else if (sample_mv > maximum_mv) {
+        sample_mv = maximum_mv;
     }
 
-    scaled = ONE_HMI_TIME_DISPLAY_MIN +
-             ((((uint32_t)(sample - min_sample) * display_span) +
-               ((uint32_t)(max_sample - min_sample) / 2U)) /
-              (uint32_t)(max_sample - min_sample));
-    return (uint8_t)scaled;
+    scaled = (float)ONE_HMI_TIME_DISPLAY_MIN +
+             (((sample_mv - minimum_mv) * display_span) /
+              (maximum_mv - minimum_mv));
+    return (uint8_t)(scaled + 0.5f);
 }
 
 /* 根据串口屏的实际绘制方向调整点序，保证时间轴从左向右。 */
@@ -312,55 +219,46 @@ static void one_hmi_spectrum_draw_line(uint32_t center_x, uint8_t y)
 
 static uint8_t one_hmi_waveform_prepare(void)
 {
-    const waveform_analyzer_result_t *analysis =
-        Waveform_Analyzer_GetResult();
-    const uint16_t *samples;
-    uint32_t sample_count;
-    uint32_t sequence;
-    uint32_t source_span;
-    uint32_t source_start;
-    uint16_t threshold;
-    uint16_t min_sample = UINT16_MAX;
-    uint16_t max_sample = 0U;
+    const signal_measurement_result_t *measurement =
+        Signal_Measurement_Service_GetResult();
+    float minimum_mv;
+    float maximum_mv;
 
-    if (Signal_Acquisition_Service_GetLatestBlock(
-            &samples, &sample_count, &sequence) == 0U) {
+    if ((measurement == NULL) || (measurement->result_ready == 0U)) {
         return 0U;
     }
-    if (sequence ==
+    if (measurement->measurement_count ==
         g_one_hmi.plot_last_sequence[ONE_HMI_PLOT_TIME_DOMAIN]) {
         return 0U;
     }
 
-    source_span = one_hmi_waveform_get_source_span(analysis, sample_count);
-    threshold = ((analysis != NULL) && (analysis->result_ready != 0U)) ?
-                    analysis->average_code :
-                    2048U;
-    source_start = one_hmi_waveform_find_trigger(
-        samples, sample_count, source_span, threshold);
-
-    for (uint32_t index = 0U; index < source_span; ++index) {
-        const uint16_t sample = samples[source_start + index];
-        if (sample < min_sample) {
-            min_sample = sample;
-        }
-        if (sample > max_sample) {
-            max_sample = sample;
-        }
+    /*
+     * 第三问的时域曲线只由 10 kHz～500 kHz 有效谐波重构，
+     * 因此不会把原始 ADC 中不低于 1 MHz 的干扰画到屏幕上。
+     */
+    if (Signal_Reconstruction_Service_Generate(
+            measurement,
+            g_one_hmi.status.waveform_cycles,
+            g_one_hmi.waveform_reconstructed_mv,
+            TJC_SCREEN_PLOT_POINT_COUNT,
+            &minimum_mv,
+            &maximum_mv) == 0U) {
+        return 0U;
     }
 
     for (uint16_t index = 0U;
          index < TJC_SCREEN_PLOT_POINT_COUNT;
          ++index) {
-        const uint16_t sample = one_hmi_waveform_interpolate(
-            samples, source_start, source_span, index);
         g_one_hmi.waveform_points[index] =
-            one_hmi_waveform_scale_sample(sample, min_sample, max_sample);
+            one_hmi_waveform_scale_sample(
+                g_one_hmi.waveform_reconstructed_mv[index],
+                minimum_mv,
+                maximum_mv);
     }
 
     one_hmi_waveform_apply_display_direction();
 
-    g_one_hmi.waveform_pending_sequence = sequence;
+    g_one_hmi.waveform_pending_sequence = measurement->measurement_count;
     return 1U;
 }
 
