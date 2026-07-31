@@ -94,7 +94,11 @@
 #error "Set both TJC waveform-cycle touch component IDs"
 #endif
 
-/* 页面 0 数值变量，电压和幅值的单位为 0.1 mV。 */
+/*
+ * 页面 0 隐藏数值变量。
+ * 电压和幅值采用 mV 定点数传输：发送值 = mV * 10；
+ * 屏端 x0～x4 的 vvs 设置为 1，最终按 mV 显示一位小数。
+ */
 #define TJC_SCREEN_MEAS_SIGNAL_VALID "page0.va0"
 #define TJC_SCREEN_MEAS_PEAK_TO_PEAK "page0.va1"
 #define TJC_SCREEN_MEAS_TRUE_RMS "page0.va2"
@@ -102,7 +106,7 @@
 #define TJC_SCREEN_MEAS_COMPONENT_COUNT "page0.va4"
 #define TJC_SCREEN_MEAS_COMPONENT1_HZ "page0.va5"
 #define TJC_SCREEN_MEAS_COMPONENT1_AMPLITUDE "page0.va6"
-/* 第二路在当前页面中的显示顺序为：t7 幅值、t8 频率。 */
+/* 第二路显示使用 t7 显示频率、x3 显示幅值。 */
 #define TJC_SCREEN_MEAS_COMPONENT2_HZ "page0.va8"
 #define TJC_SCREEN_MEAS_COMPONENT2_AMPLITUDE "page0.va7"
 #define TJC_SCREEN_MEAS_COMPONENT3_HZ "page0.va9"
@@ -111,5 +115,16 @@
 /* 基波阶次固定为 1，串口屏只显示后两条谱线的谐波阶次。 */
 #define TJC_SCREEN_MEAS_COMPONENT2_ORDER "page0.va12"
 #define TJC_SCREEN_MEAS_COMPONENT3_ORDER "page0.va13"
+
+/*
+ * 页面 0 电压类虚拟浮点数组件：
+ * x0=峰峰值，x1=真有效值，x2/x3/x4=三路谱线幅值。
+ */
+#define TJC_SCREEN_DISPLAY_PEAK_TO_PEAK "page0.x0"
+#define TJC_SCREEN_DISPLAY_TRUE_RMS "page0.x1"
+#define TJC_SCREEN_DISPLAY_COMPONENT1_AMPLITUDE "page0.x2"
+#define TJC_SCREEN_DISPLAY_COMPONENT2_AMPLITUDE "page0.x3"
+#define TJC_SCREEN_DISPLAY_COMPONENT3_AMPLITUDE "page0.x4"
+#define TJC_SCREEN_MILLIVOLT_DECIMAL_PLACES 1U
 
 #endif

@@ -57,7 +57,10 @@ typedef struct {
 
 static one_hmi_context_t g_one_hmi;
 
-/* 页面 0 隐藏数值变量协议：幅值均以 0.1 mV 为单位。 */
+/*
+ * 页面 0 隐藏数值变量协议：电压值采用 mV * 10 的定点格式。
+ * 屏端虚拟浮点数组件设置 vvs=1 后，以 mV 为单位显示一位小数。
+ */
 static const char *const
     g_one_hmi_measurement_names[ONE_HMI_MEASUREMENT_FIELD_COUNT] = {
         TJC_SCREEN_MEAS_SIGNAL_VALID,

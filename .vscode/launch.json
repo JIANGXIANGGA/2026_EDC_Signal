@@ -25,19 +25,21 @@
             "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
             "gdbPath": "D:/03_Tools/msys64/mingw64/bin/gdb-multiarch.exe",
             "interface": "swd",
-            "device": "STM32G474VE",
+            "device": "STM32G474VET6",
+            "connectUnderReset": true,
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/stm32g4x.cfg"
             ],
             "openOCDLaunchCommands": [
-                "adapter speed 1000"
+                "adapter speed 400",
+                "reset_config srst_only srst_nogate connect_assert_srst"
             ],
             "preLaunchCommands": [
                 "set remotetimeout 10"
             ],
             "runToEntryPoint": "main",
-            "showDevDebugOutput": "none"
+            "showDevDebugOutput": "raw"
         },
         {
             "name": "Release G474 (Wireless CMSIS-DAP)",
@@ -49,19 +51,21 @@
             "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
             "gdbPath": "D:/03_Tools/msys64/mingw64/bin/gdb-multiarch.exe",
             "interface": "swd",
-            "device": "STM32G474VE",
+            "device": "STM32G474VET6",
+            "connectUnderReset": true,
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/stm32g4x.cfg"
             ],
             "openOCDLaunchCommands": [
-                "adapter speed 1000"
+                "adapter speed 400",
+                "reset_config srst_only srst_nogate connect_assert_srst"
             ],
             "preLaunchCommands": [
                 "set remotetimeout 10"
             ],
             "runToEntryPoint": "main",
-            "showDevDebugOutput": "none"
+            "showDevDebugOutput": "raw"
         },
         {
             "name": "Attach G474 (Wireless CMSIS-DAP, No Download)",
@@ -73,18 +77,20 @@
             "serverpath": "D:/03_Tools/msys64/mingw64/bin/openocd.exe",
             "gdbPath": "D:/03_Tools/msys64/mingw64/bin/gdb-multiarch.exe",
             "interface": "swd",
-            "device": "STM32G474VE",
+            "device": "STM32G474VET6",
+            "connectUnderReset": true,
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/stm32g4x.cfg"
             ],
             "openOCDLaunchCommands": [
-                "adapter speed 1000"
+                "adapter speed 400",
+                "reset_config srst_only srst_nogate connect_assert_srst"
             ],
             "preAttachCommands": [
                 "set remotetimeout 10"
             ],
-            "showDevDebugOutput": "none"
+            "showDevDebugOutput": "raw"
         }
     ]
 }
