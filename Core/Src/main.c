@@ -37,14 +37,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-/* 170 MHz / (42 + 1) = 3.953488 MSPS，8192 点 FFT 栅格为 482.604 Hz。 */
-#define SIGNAL_ADC_TIMER_PERIOD 42U
+/* ADC2 使用 60 MHz 内核时钟、连续转换，理论采样率为 4 MSPS。 */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 /* 旧 CubeMX 生成调用保留在自动区，但运行时不再初始化 ADC1/PB0。 */
 #define MX_ADC1_Init() ((void)0)
+#define MX_TIM7_Init() ((void)0)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -89,7 +89,7 @@ static HAL_StatusTypeDef Signal_ADC_PLLClock_Config(void)
   oscillator.PLL.PLLState = RCC_PLL_ON;
   oscillator.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   oscillator.PLL.PLLM = RCC_PLLM_DIV6;
-  oscillator.PLL.PLLN = 85;
+  oscillator.PLL.PLLN = 75;
   oscillator.PLL.PLLP = RCC_PLLP_DIV5;
   oscillator.PLL.PLLQ = RCC_PLLQ_DIV2;
   oscillator.PLL.PLLR = RCC_PLLR_DIV2;
@@ -105,6 +105,44 @@ static HAL_StatusTypeDef Signal_ADC_PLLClock_Config(void)
   clock.APB1CLKDivider = RCC_HCLK_DIV1;
   clock.APB2CLKDivider = RCC_HCLK_DIV1;
   return HAL_RCC_ClockConfig(&clock, FLASH_LATENCY_4);
+}
+
+static HAL_StatusTypeDef Signal_ADC2_Continuous_Config(void)
+{
+  ADC_ChannelConfTypeDef channel_config = {0};
+
+  if (HAL_ADC_DeInit(&hadc2) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.GainCompensation = 0U;
+  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc2.Init.LowPowerAutoWait = DISABLE;
+  hadc2.Init.ContinuousConvMode = ENABLE;
+  hadc2.Init.NbrOfConversion = 1U;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.DMAContinuousRequests = ENABLE;
+  hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  hadc2.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  channel_config.Channel = ADC_CHANNEL_4;
+  channel_config.Rank = ADC_REGULAR_RANK_1;
+  channel_config.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  channel_config.SingleDiff = ADC_SINGLE_ENDED;
+  channel_config.OffsetNumber = ADC_OFFSET_NONE;
+  channel_config.Offset = 0U;
+  return HAL_ADC_ConfigChannel(&hadc2, &channel_config);
 }
 
 /* USER CODE END 0 */
@@ -152,13 +190,13 @@ int main(void)
    * 保持运行固件与 G474.ioc 一致。即使尚未重新生成 CubeMX 代码，
    * 也在启动 ADC 前将 TIM7 更新率修正到严格满足 500 Hz 栅格要求。
    */
-  htim7.Init.Period = SIGNAL_ADC_TIMER_PERIOD;
-  __HAL_TIM_SET_AUTORELOAD(&htim7, SIGNAL_ADC_TIMER_PERIOD);
-  __HAL_TIM_SET_COUNTER(&htim7, 0U);
-
-  /* PA7/ADC2_IN4 高速通道，ADC12 异步时钟由 PLLP/5 提供 68 MHz。 */
+  /* PA7/ADC2_IN4 以 ADC 自由运行模式连续采样，不使用 TIM7 触发。 */
   HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
   MX_ADC2_Init();
+  if (Signal_ADC2_Continuous_Config() != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /*
    * PA7 实机标定：输入高电平 124 mV、低电平 14 mV，即 110 mVpp；
@@ -167,14 +205,26 @@ int main(void)
    * 该系数为线性比例，不假定输入固定为 110 mVpp，可覆盖 50～250 mVpp。
    */
   const signal_measurement_calibration_t measurement_calibration = {
+    /* UNI-T固定为50 Ω负载标称；基础系数按50 Ω、250 mVpp三点实测恢复。 */
     .input_mv_per_code = 0.802920f,
     .peak_to_peak_gain = 1.0f,
     .rms_gain = 1.0f,
     .spectrum_gain = 1.0f,
-    .response_point_count = 0U,
+    /* 完整四阶低通链路的实机幅频标定，增益为标准幅值/ADC实测幅值。 */
+    .response_point_count = 9U,
+    .response = {
+      {10000U, 1.0232124f},
+      {52000U, 1.0281786f},
+      {110500U, 1.0441583f},
+      {180000U, 1.0773593f},
+      {236000U, 1.1150099f},
+      {294000U, 1.1647156f},
+      {356000U, 1.2324778f},
+      {419500U, 1.3066484f},
+      {500000U, 1.4277137f},
+    },
   };
   const signal_app_config_t signal_app_config = {
-    .adc_timer = &htim7,
     .hmi_uart = &huart1,
     .measurement_calibration = &measurement_calibration,
   };

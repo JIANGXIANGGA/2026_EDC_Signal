@@ -20,7 +20,6 @@ typedef enum {
 } signal_acquisition_error_t;
 
 typedef struct {
-    TIM_HandleTypeDef *adc_timer;
     const signal_measurement_calibration_t *measurement_calibration;
 } signal_acquisition_config_t;
 

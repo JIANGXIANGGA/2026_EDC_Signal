@@ -11,19 +11,19 @@
 
 #define ADC_INTERNAL_HALF_COUNT 2U
 #define ADC_INTERNAL_BLOCK_SIZE 8192U
+#define ADC_INTERNAL_SAMPLE_RATE_HZ 4000000U
 #define ADC_INTERNAL_SAMPLE_COUNT \
     (ADC_INTERNAL_HALF_COUNT * ADC_INTERNAL_BLOCK_SIZE)
 #define ADC_INTERNAL_INPUT_GPIO_PORT GPIOA
 #define ADC_INTERNAL_INPUT_PIN GPIO_PIN_7
 
 /**
- * @brief 配置 ADC2_IN4（PA7 高速通道）、循环 DMA 和 TIM7 外部触发采集。
- * @param trigger_timer 产生 ADC 触发事件的 TIM7 句柄。
+ * @brief 配置 ADC2_IN4（PA7 高速通道）与循环 DMA 连续采集。
  */
-HAL_StatusTypeDef ADC_Internal_Init(TIM_HandleTypeDef *trigger_timer);
+HAL_StatusTypeDef ADC_Internal_Init(void);
 
 /**
- * @brief 启动 ADC DMA，并在 DMA 就绪后启动 TIM7 触发。
+ * @brief 启动 ADC DMA 和 ADC 硬件连续转换。
  */
 HAL_StatusTypeDef ADC_Internal_Start(void);
 
@@ -44,5 +44,6 @@ uint32_t ADC_Internal_GetHalfCompleteCount(void);
 uint32_t ADC_Internal_GetCompleteCount(void);
 uint32_t ADC_Internal_GetErrorCount(void);
 uint32_t ADC_Internal_GetOverrunCount(void);
+uint32_t ADC_Internal_GetSampleRateHz(void);
 
 #endif

@@ -62,9 +62,11 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Modules/ADC/adc_internal.c
     Modules/HMI/tjc_uart_driver.c
+    Modules/VOFA/vofa_uart_driver.c
     Services/signal_acquisition_service.c
     Services/signal_measurement_service.c
     Services/usart_hmi_service.c
+    Services/vofa_telemetry_service.c
     Services/waveform_analyzer_service.c
     Services/fft.c
     Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
@@ -87,6 +89,7 @@ endif()
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Modules/ADC
     Modules/HMI
+    Modules/VOFA
     Services/
     App
     Drivers/CMSIS/DSP/Include

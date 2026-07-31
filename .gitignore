@@ -10,6 +10,10 @@ doc/
 # 本机工具与诊断输出
 Tools/
 
+# 测试报告生成缓存（正式CSV/JSON/XLSX仍保留）
+outputs/**/node_modules/
+outputs/**/*.inspect.ndjson
+
 # CMake/编译产物
 CMakeFiles/
 CMakeCache.txt

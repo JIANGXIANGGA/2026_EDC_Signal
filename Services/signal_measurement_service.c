@@ -6,7 +6,9 @@
 #define SIGNAL_MEASUREMENT_ADC_MAX_CODE 4095.0f
 #define SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV 20.0f
 #define SIGNAL_MEASUREMENT_HARMONIC_TOLERANCE_HZ 1000.0f
-#define SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ 1500.0f
+#define SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ 250.0f
+#define SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT 1000U
+#define SIGNAL_MEASUREMENT_TWO_PI 6.28318530717958647692f
 
 typedef struct {
     uint8_t initialized;
@@ -147,7 +149,14 @@ static void signal_measurement_aggregate_history(
     }
     output->raw_rms_mv = signal_measurement_robust_average(
         values, g_signal_measurement.history_count, NULL);
-    output->true_rms_mv = output->raw_rms_mv;
+
+    for (uint8_t frame = 0U;
+         frame < g_signal_measurement.history_count;
+         ++frame) {
+        values[frame] = g_signal_measurement.history[frame].true_rms_mv;
+    }
+    output->true_rms_mv = signal_measurement_robust_average(
+        values, g_signal_measurement.history_count, NULL);
 
     output->max_component_spread_mv = 0.0f;
     for (uint8_t component = 0U;
@@ -258,6 +267,93 @@ static float signal_measurement_response_gain(float frequency_hz)
     return calibration
         ->response[calibration->response_point_count - 1U]
         .correction_gain;
+}
+
+static float signal_measurement_calculate_true_rms(
+    const signal_measurement_result_t *measurement)
+{
+    float amplitude_square_sum = 0.0f;
+
+    if ((measurement == NULL) || (measurement->component_count == 0U)) {
+        return 0.0f;
+    }
+
+    for (uint8_t index = 0U;
+         index < measurement->component_count;
+         ++index) {
+        const float amplitude = measurement->components[index].amplitude_mv;
+        amplitude_square_sum += amplitude * amplitude;
+    }
+    return sqrtf(0.5f * amplitude_square_sum);
+}
+
+static float signal_measurement_reconstruct_zero_phase_peak_to_peak(
+    const signal_measurement_result_t *measurement)
+{
+    float sine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
+    float cosine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {
+        1.0f, 1.0f, 1.0f
+    };
+    float step_sine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
+    float step_cosine[SIGNAL_MEASUREMENT_COMPONENT_COUNT] = {0.0f};
+    float minimum = 0.0f;
+    float maximum = 0.0f;
+
+    if ((measurement == NULL) || (measurement->component_count == 0U)) {
+        return 0.0f;
+    }
+
+    for (uint8_t index = 0U;
+         index < measurement->component_count;
+         ++index) {
+        const uint8_t order = measurement->components[index].harmonic_order;
+        const float step = SIGNAL_MEASUREMENT_TWO_PI * (float)order /
+                           (float)SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT;
+
+        if (order == 0U) {
+            return 0.0f;
+        }
+        step_sine[index] = sinf(step);
+        step_cosine[index] = cosf(step);
+    }
+
+    /*
+     * 本轮信号源各频率分量初相均为 0。采样起点只会造成统一的时间平移，
+     * 不改变峰峰值，因此按谐波阶次重构一个完整周期即可恢复低通前 Upp。
+     * 正余弦递推避免在主循环内重复调用大量 sinf()。
+     */
+    for (uint32_t point = 0U;
+         point < SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT;
+         ++point) {
+        float value = 0.0f;
+
+        for (uint8_t index = 0U;
+             index < measurement->component_count;
+             ++index) {
+            value += measurement->components[index].amplitude_mv * sine[index];
+        }
+        if (value < minimum) {
+            minimum = value;
+        }
+        if (value > maximum) {
+            maximum = value;
+        }
+
+        for (uint8_t index = 0U;
+             index < measurement->component_count;
+             ++index) {
+            const float next_sine =
+                (sine[index] * step_cosine[index]) +
+                (cosine[index] * step_sine[index]);
+            const float next_cosine =
+                (cosine[index] * step_cosine[index]) -
+                (sine[index] * step_sine[index]);
+            sine[index] = next_sine;
+            cosine[index] = next_cosine;
+        }
+    }
+
+    return maximum - minimum;
 }
 
 static uint8_t signal_measurement_harmonic_order(float frequency_hz,
@@ -530,8 +626,13 @@ HAL_StatusTypeDef Signal_Measurement_Service_Process(
                     next.components[index].frequency_hz,
                     next.fundamental_frequency_hz);
         }
+
+        next.true_rms_mv = signal_measurement_calculate_true_rms(&next);
+        next.peak_to_peak_mv =
+            signal_measurement_reconstruct_zero_phase_peak_to_peak(&next);
+    } else {
+        next.true_rms_mv = next.raw_rms_mv;
     }
-    next.true_rms_mv = next.raw_rms_mv;
 
     next.signal_valid =
         ((next.peak_to_peak_mv >=

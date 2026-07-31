@@ -17,44 +17,6 @@ static uint8_t g_signal_acquisition_cycle_counter_ready;
 _Static_assert(ADC_INTERNAL_BLOCK_SIZE >= WAVEFORM_ANALYZER_FFT_SIZE,
                "ADC 采样块长度必须覆盖一次 FFT");
 
-static uint32_t signal_acquisition_get_timer_clock_hz(
-    const TIM_HandleTypeDef *timer)
-{
-    uint32_t timer_clock_hz;
-
-    if ((timer == NULL) || (timer->Instance != TIM7)) {
-        return 0U;
-    }
-
-    timer_clock_hz = HAL_RCC_GetPCLK1Freq();
-    if ((RCC->CFGR & RCC_CFGR_PPRE1) != 0U) {
-        timer_clock_hz *= 2U;
-    }
-
-    return timer_clock_hz;
-}
-
-static uint32_t signal_acquisition_get_timer_update_rate_hz(
-    const TIM_HandleTypeDef *timer)
-{
-    const uint32_t timer_clock_hz =
-        signal_acquisition_get_timer_clock_hz(timer);
-    uint64_t divisor;
-
-    if ((timer_clock_hz == 0U) || (timer == NULL)) {
-        return 0U;
-    }
-
-    divisor = ((uint64_t)timer->Init.Prescaler + 1ULL) *
-              ((uint64_t)timer->Init.Period + 1ULL);
-    if (divisor == 0U) {
-        return 0U;
-    }
-
-    return (uint32_t)(((uint64_t)timer_clock_hz + (divisor / 2ULL)) /
-                      divisor);
-}
-
 static uint8_t signal_acquisition_time_reached(uint32_t deadline_ms)
 {
     return ((int32_t)(HAL_GetTick() - deadline_ms) >= 0) ? 1U : 0U;
@@ -148,21 +110,20 @@ HAL_StatusTypeDef Signal_Acquisition_Service_Init(
 
     g_signal_acquisition_status = (signal_acquisition_status_t){0};
     signal_acquisition_cycle_counter_init();
-    if ((config == NULL) || (config->adc_timer == NULL)) {
+    if (config == NULL) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
             HAL_ERROR);
     }
 
-    adc_sample_rate_hz =
-        signal_acquisition_get_timer_update_rate_hz(config->adc_timer);
+    adc_sample_rate_hz = ADC_Internal_GetSampleRateHz();
     if (adc_sample_rate_hz == 0U) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_INVALID_CONFIG,
             HAL_ERROR);
     }
 
-    status = ADC_Internal_Init(config->adc_timer);
+    status = ADC_Internal_Init();
     if (status != HAL_OK) {
         return signal_acquisition_set_error(
             SIGNAL_ACQUISITION_ERROR_ADC_INIT,

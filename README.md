@@ -4,8 +4,8 @@
 信号发生器输出的周期信号。固件只负责采集、分析和显示，不再包含板载信号源
 控制代码。
 
-当前版本为 2026-07-30 正式基线，已移除固定值自检、ADC/DAC 环回和标定遥测路径，
-后续功能在本基线的 Driver、Service、Application 分层上扩展。
+当前版本为 2026-07-30 正式基线，已移除固定值自检和 ADC/DAC 环回路径；保留独立
+VOFA+ 遥测链路，用于实机查看题目物理量和 ADC/FFT 原始诊断数据。
 
 ## 当前功能
 
@@ -15,6 +15,7 @@
 - 10 kHz～500 kHz 谱峰搜索和任意正整数阶谐波族筛选，有效信号输出 2～3 条谱线。
 - 峰峰值、真有效值、基频、各频率分量幅值及频谱图显示。
 - TJC 串口屏 USART1 DMA 通信，可选择显示 1 个或 3 个完整周期。
+- VOFA+ USART2 TX DMA 遥测，直接输出 Upp、U、基频及各分量频率/峰值幅值。
 
 ## 软件架构
 
@@ -26,11 +27,13 @@ Service │
 ├── signal_acquisition_service    DMA 数据交接与分析任务编排
 ├── waveform_analyzer_service     8192 点实数频谱分析
 ├── signal_measurement_service    电压标定、真有效值与谱线测量
-└── usart_hmi_service             TJC 帧解析与命令编码
+├── usart_hmi_service             TJC 帧解析与命令编码
+└── vofa_telemetry_service        题目物理量与原始诊断遥测
         │
 Driver  │
 ├── adc_internal                  ADC2_IN4 + TIM7 TRGO + ADC DMA
-└── tjc_uart_driver               USART1 Receive-to-Idle DMA
+├── tjc_uart_driver               USART1 Receive-to-Idle DMA
+└── vofa_uart_driver              USART2/PD5 TX DMA
 ```
 
 依赖方向为 `Application -> Service -> Driver -> HAL`。CubeMX 生成文件只在
@@ -168,6 +171,30 @@ addt <组件ID>,0,512
 等待 FD FF FF FF
 ```
 
+## VOFA+ 串口调试协议
+
+USART2 TX 使用 PD5、460800 bit/s、8N1 和 DMA2 Channel 1，每 100 ms 输出两行。
+第一行直接对应题目物理量：
+
+```text
+Upp_mV:253.5,U_mV:65.5,f_base_Hz:100001,component_count:2,signal_valid:1,f1_Hz:100001,U1_peak_mV:82.1,n1:1,f2_Hz:500000,U2_peak_mV:42.9,n2:5,f3_Hz:0,U3_peak_mV:0.0,n3:0
+```
+
+字段含义：
+
+| 字段 | 含义 | 单位 |
+| --- | --- | --- |
+| `Upp_mV` | 输入周期信号峰峰值 Upp | mV |
+| `U_mV` | 去直流后的真有效值 U | mV |
+| `f_base_Hz` | 有效谐波族的基频 | Hz |
+| `fi_Hz` | 第 i 个有效频率分量 | Hz |
+| `Ui_peak_mV` | 第 i 个正弦分量峰值幅值 Ui | mV（非 RMS、非峰峰值） |
+| `ni` | 第 i 个分量相对基频的谐波阶次 | 正整数 |
+
+第二行保留 `adc_min/max`、原始 FFT 候选峰、码值幅值、九帧聚合离散度、分析耗时和
+`adc_overrun` 等字段。固件输出的是实测值；每组 UNI-T 任意波的理论真实值由公式、
+频率和输出幅度单独计算，再与第一行结果做误差比较。
+
 ## 构建
 
 ```powershell
@@ -182,8 +209,8 @@ cmake --build --preset Release
 
 | 构建 | RAM | CCMRAM | FLASH |
 | --- | ---: | ---: | ---: |
-| Debug | 73,112 / 98,304 B | 32,768 / 32,768 B | 112,452 / 524,288 B |
-| Release | 73,112 / 98,304 B | 32,768 / 32,768 B | 80,596 / 524,288 B |
+| Debug | 74,448 / 98,304 B | 32,768 / 32,768 B | 116,664 / 524,288 B |
+| Release | 74,448 / 98,304 B | 32,768 / 32,768 B | 83,112 / 524,288 B |
 
 CCMRAM 专用于 8192 点实数 FFT 缓冲区（偶/奇样本打包为 4096 点复数序列，共
 8192 个 `float`）；Hann 窗由递推振荡器实时生成，不占用窗口数组。单边幅值谱和

@@ -1,0 +1,98 @@
+{
+  "expected_peak_mv": 125.0,
+  "old_input_mv_per_code": 0.80292,
+  "global_gain": 1.9862059334752413,
+  "new_input_mv_per_code": 1.5947644681059407,
+  "points": [
+    {
+      "frequency_hz": 10000,
+      "raw_peak_mv": 61.506348333333335,
+      "measured_peak_mv": 63.0,
+      "old_response_gain": 1.0232124,
+      "required_total_gain_on_old_scale": 2.032310540085442,
+      "additional_gain": 1.9841269841269842,
+      "new_response_gain": 1.0232124,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 52000,
+      "raw_peak_mv": 61.209268,
+      "measured_peak_mv": 62.9,
+      "old_response_gain": 1.0274611,
+      "required_total_gain_on_old_scale": 2.0421743975111744,
+      "additional_gain": 1.987281399046105,
+      "new_response_gain": 1.0281785806258295,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 110500,
+      "raw_peak_mv": 60.272528,
+      "measured_peak_mv": 62.73333333333333,
+      "old_response_gain": 1.0411755,
+      "required_total_gain_on_old_scale": 2.0739133424103264,
+      "additional_gain": 1.9925611052072265,
+      "new_response_gain": 1.04415826549346,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 180000,
+      "raw_peak_mv": 58.41510666666667,
+      "measured_peak_mv": 62.5,
+      "old_response_gain": 1.0696714,
+      "required_total_gain_on_old_scale": 2.139857429573583,
+      "additional_gain": 2.0,
+      "new_response_gain": 1.077359297698552,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 236000,
+      "raw_peak_mv": 56.442599666666666,
+      "measured_peak_mv": 62.13333333333333,
+      "old_response_gain": 1.1009701,
+      "required_total_gain_on_old_scale": 2.214639310347381,
+      "additional_gain": 2.0118025751072963,
+      "new_response_gain": 1.1150099156498101,
+      "predicted_peak_mv": 124.99999999999999
+    },
+    {
+      "frequency_hz": 294000,
+      "raw_peak_mv": 54.033839666666665,
+      "measured_peak_mv": 61.70000000000001,
+      "old_response_gain": 1.142339,
+      "required_total_gain_on_old_scale": 2.3133651202861336,
+      "additional_gain": 2.025931928687196,
+      "new_response_gain": 1.1647156426717877,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 356000,
+      "raw_peak_mv": 51.063035333333325,
+      "measured_peak_mv": 61.1,
+      "old_response_gain": 1.1974369,
+      "required_total_gain_on_old_scale": 2.4479547520826976,
+      "additional_gain": 2.0458265139116203,
+      "new_response_gain": 1.2324778165371502,
+      "predicted_peak_mv": 125.0
+    },
+    {
+      "frequency_hz": 419500,
+      "raw_peak_mv": 48.16449466666668,
+      "measured_peak_mv": 61.0,
+      "old_response_gain": 1.265491,
+      "required_total_gain_on_old_scale": 2.595272739080746,
+      "additional_gain": 2.0491803278688523,
+      "new_response_gain": 1.3066483667883457,
+      "predicted_peak_mv": 124.99999999999999
+    },
+    {
+      "frequency_hz": 500000,
+      "raw_peak_mv": 44.080308,
+      "measured_peak_mv": 60.20000000000001,
+      "old_response_gain": 1.3662787,
+      "required_total_gain_on_old_scale": 2.835733361935674,
+      "additional_gain": 2.07641196013289,
+      "new_response_gain": 1.4277136696364734,
+      "predicted_peak_mv": 125.0
+    }
+  ]
+}

@@ -1,0 +1,2035 @@
+{
+  "instrument": "UNI-T Technologies,UTG900E,AWG1225380174,3.06",
+  "channel_1_vpp_mv": 250.0,
+  "channel_1_offset_v": 0.0,
+  "channel_1_load_ohm": 50.0,
+  "channel_2": "DC 0 V, Output ON",
+  "channel_2_load_ohm": 50.0,
+  "phase": "all terms zero phase",
+  "test_count": 14,
+  "completed_count": 14,
+  "pass_count": 14,
+  "all_passed": true,
+  "results": [
+    {
+      "name": "T01_low_10k_descending",
+      "purpose": "10 kHz低端，三分量递减幅值",
+      "fundamental_hz": 10000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          3,
+          0.5
+        ],
+        [
+          5,
+          0.25
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.1277979310981987,
+        "raw_maximum": 1.1277979310981983,
+        "raw_vpp": 2.255595862196397,
+        "rate": 3.4418711847230394e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 89.78698277449303,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 10000.0,
+            "peak_mv": 110.83545780074331
+          },
+          {
+            "order": 3,
+            "frequency_hz": 30000.0,
+            "peak_mv": 55.41772890037166
+          },
+          {
+            "order": 5,
+            "frequency_hz": 50000.0,
+            "peak_mv": 27.70886445018583
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.0,
+        "rms_mv": 89.8,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 10000.0,
+            "peak_mv": 110.8
+          },
+          {
+            "order": 3,
+            "frequency_hz": 30000.0,
+            "peak_mv": 55.4
+          },
+          {
+            "order": 5,
+            "frequency_hz": 50000.0,
+            "peak_mv": 27.7
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.0,
+          "limit": 5.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 89.78698277449303,
+          "measured": 89.8,
+          "limit": 5.0,
+          "error": 0.01301722550697093,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 10000.0,
+          "measured": 10000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 110.83545780074331,
+          "measured": 110.8,
+          "limit": 5.0,
+          "error": -0.03545780074331617,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 30000.0,
+          "measured": 30000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 55.41772890037166,
+          "measured": 55.4,
+          "limit": 5.0,
+          "error": -0.017728900371658085,
+          "passed": true
+        },
+        {
+          "name": "H5_frequency",
+          "unit": "Hz",
+          "expected": 50000.0,
+          "measured": 50000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H5_peak",
+          "unit": "mV",
+          "expected": 27.70886445018583,
+          "measured": 27.7,
+          "limit": 5.0,
+          "error": -0.008864450185829043,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.0,U_mV:89.8,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:110.8,n1:1,f2_Hz:30000,U2_peak_mV:55.4,n2:3,f3_Hz:50000,U3_peak_mV:27.7,n3:5",
+        "seq:1463,adc_min:2972,adc_max:3279,p2p_code:305,rms_code_x100:10925,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10000,raw_a1_code_x100:13500,raw_f2_hz:30001,raw_a2_code_x100:6730,raw_f3_hz:50000,raw_a3_code_x100:3359,upp_mv_x10:2500,urms_mv_x10:898,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:1108,f2_hz:30000,a2_mv_x10:554,f3_hz:50000,a3_mv_x10:277,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:89.8,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:110.8,n1:1,f2_Hz:30000,U2_peak_mV:55.4,n2:3,f3_Hz:50000,U3_peak_mV:27.7,n3:5",
+        "seq:1464,adc_min:2972,adc_max:3279,p2p_code:305,rms_code_x100:10919,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10000,raw_a1_code_x100:13478,raw_f2_hz:30000,raw_a2_code_x100:6734,raw_f3_hz:50000,raw_a3_code_x100:3355,upp_mv_x10:2500,urms_mv_x10:898,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:1108,f2_hz:30000,a2_mv_x10:554,f3_hz:50000,a3_mv_x10:277,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:89.8,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:110.8,n1:1,f2_Hz:30000,U2_peak_mV:55.4,n2:3,f3_Hz:50000,U3_peak_mV:27.7,n3:5",
+        "seq:1465,adc_min:2971,adc_max:3279,p2p_code:305,rms_code_x100:10924,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10000,raw_a1_code_x100:13494,raw_f2_hz:30000,raw_a2_code_x100:6732,raw_f3_hz:50001,raw_a3_code_x100:3360,upp_mv_x10:2500,urms_mv_x10:898,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:1108,f2_hz:30000,a2_mv_x10:554,f3_hz:50000,a3_mv_x10:277,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T02_low_10k_equal",
+      "purpose": "10 kHz低端，连续三次等幅分量",
+      "fundamental_hz": 10000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          1.0
+        ],
+        [
+          3,
+          1.0
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -2.4995973166900045,
+        "raw_maximum": 2.4995973166900036,
+        "raw_vpp": 4.999194633380008,
+        "rate": 7.628398439558103e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 61.2471088449864,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 10000.0,
+            "peak_mv": 50.00805496363969
+          },
+          {
+            "order": 2,
+            "frequency_hz": 20000.0,
+            "peak_mv": 50.00805496363969
+          },
+          {
+            "order": 3,
+            "frequency_hz": 30000.0,
+            "peak_mv": 50.00805496363969
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.0,
+        "rms_mv": 61.3,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 10000.0,
+            "peak_mv": 50.0
+          },
+          {
+            "order": 2,
+            "frequency_hz": 20000.0,
+            "peak_mv": 50.0
+          },
+          {
+            "order": 3,
+            "frequency_hz": 30000.0,
+            "peak_mv": 50.0
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.0,
+          "limit": 5.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 61.2471088449864,
+          "measured": 61.3,
+          "limit": 5.0,
+          "error": 0.05289115501359731,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 10000.0,
+          "measured": 10000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 50.00805496363969,
+          "measured": 50.0,
+          "limit": 5.0,
+          "error": -0.008054963639686719,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 20000.0,
+          "measured": 20000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 50.00805496363969,
+          "measured": 50.0,
+          "limit": 5.0,
+          "error": -0.008054963639686719,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 30000.0,
+          "measured": 30000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 50.00805496363969,
+          "measured": 50.0,
+          "limit": 5.0,
+          "error": -0.008054963639686719,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.0,U_mV:61.3,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:50.0,n1:1,f2_Hz:20000,U2_peak_mV:50.0,n2:2,f3_Hz:30000,U3_peak_mV:50.0,n3:3",
+        "seq:1509,adc_min:2971,adc_max:3280,p2p_code:306,rms_code_x100:7445,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10000,raw_a1_code_x100:6082,raw_f2_hz:20000,raw_a2_code_x100:6080,raw_f3_hz:30000,raw_a3_code_x100:6075,upp_mv_x10:2500,urms_mv_x10:613,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:500,f2_hz:20000,a2_mv_x10:500,f3_hz:30000,a3_mv_x10:500,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:61.3,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:50.0,n1:1,f2_Hz:20000,U2_peak_mV:50.0,n2:2,f3_Hz:30000,U3_peak_mV:50.0,n3:3",
+        "seq:1510,adc_min:2972,adc_max:3279,p2p_code:305,rms_code_x100:7458,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10000,raw_a1_code_x100:6068,raw_f2_hz:20000,raw_a2_code_x100:6078,raw_f3_hz:30001,raw_a3_code_x100:6084,upp_mv_x10:2500,urms_mv_x10:613,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:500,f2_hz:20000,a2_mv_x10:500,f3_hz:30000,a3_mv_x10:500,p2p_spread_mv_x10:3,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:61.3,f_base_Hz:10000,component_count:3,signal_valid:1,f1_Hz:10000,U1_peak_mV:50.0,n1:1,f2_Hz:20000,U2_peak_mV:50.0,n2:2,f3_Hz:30000,U3_peak_mV:50.0,n3:3",
+        "seq:1511,adc_min:2972,adc_max:3279,p2p_code:306,rms_code_x100:7506,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:10001,raw_a1_code_x100:6087,raw_f2_hz:20000,raw_a2_code_x100:6086,raw_f3_hz:30000,raw_a3_code_x100:6079,upp_mv_x10:2500,urms_mv_x10:613,comp_count:3,avg_count:9,f1_hz:10000,a1_mv_x10:500,f2_hz:20000,a2_mv_x10:500,f3_hz:30000,a3_mv_x10:500,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T03_mid_60k_3to1to1",
+      "purpose": "60 kHz，3:1:1比例，最高360 kHz",
+      "fundamental_hz": 60000.0,
+      "terms": [
+        [
+          1,
+          0.6
+        ],
+        [
+          3,
+          0.2
+        ],
+        [
+          6,
+          0.2
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -0.765685424949238,
+        "raw_maximum": 0.765685424949238,
+        "raw_vpp": 1.531370849898476,
+        "rate": 2.3367577896946254e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 76.5721732285551,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 60000.0,
+            "peak_mv": 97.95145311140304
+          },
+          {
+            "order": 3,
+            "frequency_hz": 180000.0,
+            "peak_mv": 32.65048437046769
+          },
+          {
+            "order": 6,
+            "frequency_hz": 360000.0,
+            "peak_mv": 32.65048437046769
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.6,
+        "rms_mv": 76.6,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 60001.0,
+            "peak_mv": 97.9
+          },
+          {
+            "order": 3,
+            "frequency_hz": 180002.0,
+            "peak_mv": 32.7
+          },
+          {
+            "order": 6,
+            "frequency_hz": 360004.0,
+            "peak_mv": 32.9
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.6,
+          "limit": 5.0,
+          "error": 0.5999999999999943,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 76.5721732285551,
+          "measured": 76.6,
+          "limit": 5.0,
+          "error": 0.027826771444892984,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 60000.0,
+          "measured": 60001.0,
+          "limit": 1000.0,
+          "error": 1.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 97.95145311140304,
+          "measured": 97.9,
+          "limit": 5.0,
+          "error": -0.05145311140303477,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 180000.0,
+          "measured": 180002.0,
+          "limit": 1000.0,
+          "error": 2.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 32.65048437046769,
+          "measured": 32.7,
+          "limit": 5.0,
+          "error": 0.049515629532315586,
+          "passed": true
+        },
+        {
+          "name": "H6_frequency",
+          "unit": "Hz",
+          "expected": 360000.0,
+          "measured": 360004.0,
+          "limit": 1000.0,
+          "error": 4.0,
+          "passed": true
+        },
+        {
+          "name": "H6_peak",
+          "unit": "mV",
+          "expected": 32.65048437046769,
+          "measured": 32.9,
+          "limit": 5.0,
+          "error": 0.24951562953231132,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.6,U_mV:76.6,f_base_Hz:60001,component_count:3,signal_valid:1,f1_Hz:60001,U1_peak_mV:97.9,n1:1,f2_Hz:180002,U2_peak_mV:32.7,n2:3,f3_Hz:360004,U3_peak_mV:32.9,n3:6",
+        "seq:1555,adc_min:2980,adc_max:3271,p2p_code:288,rms_code_x100:9091,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:60001,raw_a1_code_x100:11828,raw_f2_hz:180002,raw_a2_code_x100:3783,raw_f3_hz:360004,raw_a3_code_x100:3313,upp_mv_x10:2506,urms_mv_x10:766,comp_count:3,avg_count:9,f1_hz:60001,a1_mv_x10:979,f2_hz:180002,a2_mv_x10:327,f3_hz:360004,a3_mv_x10:329,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.5,U_mV:76.6,f_base_Hz:60001,component_count:3,signal_valid:1,f1_Hz:60001,U1_peak_mV:97.9,n1:1,f2_Hz:180002,U2_peak_mV:32.7,n2:3,f3_Hz:360004,U3_peak_mV:32.9,n3:6",
+        "seq:1556,adc_min:2981,adc_max:3271,p2p_code:288,rms_code_x100:9090,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:60001,raw_a1_code_x100:11829,raw_f2_hz:180002,raw_a2_code_x100:3782,raw_f3_hz:360004,raw_a3_code_x100:3314,upp_mv_x10:2505,urms_mv_x10:766,comp_count:3,avg_count:9,f1_hz:60001,a1_mv_x10:979,f2_hz:180002,a2_mv_x10:327,f3_hz:360004,a3_mv_x10:329,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.5,U_mV:76.6,f_base_Hz:60001,component_count:3,signal_valid:1,f1_Hz:60001,U1_peak_mV:97.9,n1:1,f2_Hz:180002,U2_peak_mV:32.7,n2:3,f3_Hz:360004,U3_peak_mV:32.9,n3:6",
+        "seq:1557,adc_min:2981,adc_max:3271,p2p_code:288,rms_code_x100:9089,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:60001,raw_a1_code_x100:11833,raw_f2_hz:180002,raw_a2_code_x100:3781,raw_f3_hz:360004,raw_a3_code_x100:3313,upp_mv_x10:2505,urms_mv_x10:766,comp_count:3,avg_count:9,f1_hz:60001,a1_mv_x10:979,f2_hz:180002,a2_mv_x10:327,f3_hz:360004,a3_mv_x10:329,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T04_80k_weak_fundamental",
+      "purpose": "弱基波、强高次谐波，最高480 kHz",
+      "fundamental_hz": 80000.0,
+      "terms": [
+        [
+          1,
+          0.08
+        ],
+        [
+          3,
+          0.42
+        ],
+        [
+          6,
+          0.5
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -0.8702638471332491,
+        "raw_maximum": 0.8702638471332491,
+        "raw_vpp": 1.7405276942664982,
+        "rate": 2.6559155465353835e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 66.81711177548401,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 80000.0,
+            "peak_mv": 11.490768038843816
+          },
+          {
+            "order": 3,
+            "frequency_hz": 240000.0,
+            "peak_mv": 60.326532203930036
+          },
+          {
+            "order": 6,
+            "frequency_hz": 480000.0,
+            "peak_mv": 71.81730024277385
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.3,
+        "rms_mv": 66.9,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 80001.0,
+            "peak_mv": 11.5
+          },
+          {
+            "order": 3,
+            "frequency_hz": 240003.0,
+            "peak_mv": 60.4
+          },
+          {
+            "order": 6,
+            "frequency_hz": 480005.0,
+            "peak_mv": 71.9
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.3,
+          "limit": 5.0,
+          "error": 0.30000000000001137,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 66.81711177548401,
+          "measured": 66.9,
+          "limit": 5.0,
+          "error": 0.08288822451599742,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 80000.0,
+          "measured": 80001.0,
+          "limit": 1000.0,
+          "error": 1.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 11.490768038843816,
+          "measured": 11.5,
+          "limit": 5.0,
+          "error": 0.009231961156183743,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 240000.0,
+          "measured": 240003.0,
+          "limit": 1000.0,
+          "error": 3.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 60.326532203930036,
+          "measured": 60.4,
+          "limit": 5.0,
+          "error": 0.07346779606996279,
+          "passed": true
+        },
+        {
+          "name": "H6_frequency",
+          "unit": "Hz",
+          "expected": 480000.0,
+          "measured": 480005.0,
+          "limit": 1000.0,
+          "error": 5.0,
+          "passed": true
+        },
+        {
+          "name": "H6_peak",
+          "unit": "mV",
+          "expected": 71.81730024277385,
+          "measured": 71.9,
+          "limit": 5.0,
+          "error": 0.08269975722615186,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.4,U_mV:66.9,f_base_Hz:80001,component_count:3,signal_valid:1,f1_Hz:80001,U1_peak_mV:11.5,n1:1,f2_Hz:240003,U2_peak_mV:60.4,n2:3,f3_Hz:480005,U3_peak_mV:71.9,n3:6",
+        "seq:1601,adc_min:2999,adc_max:3251,p2p_code:250,rms_code_x100:6643,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:80000,raw_a1_code_x100:1379,raw_f2_hz:240003,raw_a2_code_x100:6727,raw_f3_hz:480005,raw_a3_code_x100:6409,upp_mv_x10:2504,urms_mv_x10:669,comp_count:3,avg_count:9,f1_hz:80001,a1_mv_x10:115,f2_hz:240003,a2_mv_x10:604,f3_hz:480005,a3_mv_x10:719,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.3,U_mV:66.9,f_base_Hz:80001,component_count:3,signal_valid:1,f1_Hz:80001,U1_peak_mV:11.5,n1:1,f2_Hz:240003,U2_peak_mV:60.4,n2:3,f3_Hz:480005,U3_peak_mV:71.9,n3:6",
+        "seq:1602,adc_min:2998,adc_max:3251,p2p_code:251,rms_code_x100:6642,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:80001,raw_a1_code_x100:1387,raw_f2_hz:240003,raw_a2_code_x100:6729,raw_f3_hz:480005,raw_a3_code_x100:6407,upp_mv_x10:2503,urms_mv_x10:669,comp_count:3,avg_count:9,f1_hz:80001,a1_mv_x10:115,f2_hz:240003,a2_mv_x10:604,f3_hz:480005,a3_mv_x10:719,p2p_spread_mv_x10:2,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.3,U_mV:66.9,f_base_Hz:80001,component_count:3,signal_valid:1,f1_Hz:80001,U1_peak_mV:11.5,n1:1,f2_Hz:240003,U2_peak_mV:60.4,n2:3,f3_Hz:480005,U3_peak_mV:71.9,n3:6",
+        "seq:1603,adc_min:2998,adc_max:3250,p2p_code:250,rms_code_x100:6641,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:80000,raw_a1_code_x100:1383,raw_f2_hz:240002,raw_a2_code_x100:6729,raw_f3_hz:480005,raw_a3_code_x100:6414,upp_mv_x10:2503,urms_mv_x10:669,comp_count:3,avg_count:9,f1_hz:80001,a1_mv_x10:115,f2_hz:240003,a2_mv_x10:604,f3_hz:480005,a3_mv_x10:719,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T05_100k_very_weak_fundamental_500k",
+      "purpose": "极弱基波、强谐波，五次谐波正好500 kHz",
+      "fundamental_hz": 100000.0,
+      "terms": [
+        [
+          1,
+          0.05
+        ],
+        [
+          3,
+          0.45
+        ],
+        [
+          5,
+          0.5
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -0.901773576466073,
+        "raw_maximum": 0.9017735764660734,
+        "raw_vpp": 1.8035471529321465,
+        "rate": 2.7520785438583738e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 66.11548801663317,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 100000.0,
+            "peak_mv": 6.930786356030625
+          },
+          {
+            "order": 3,
+            "frequency_hz": 300000.0,
+            "peak_mv": 62.37707720427562
+          },
+          {
+            "order": 5,
+            "frequency_hz": 500000.0,
+            "peak_mv": 69.30786356030625
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.2,
+        "rms_mv": 66.2,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 100001.0,
+            "peak_mv": 6.9
+          },
+          {
+            "order": 3,
+            "frequency_hz": 300003.0,
+            "peak_mv": 62.6
+          },
+          {
+            "order": 5,
+            "frequency_hz": 500000.0,
+            "peak_mv": 69.3
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.2,
+          "limit": 5.0,
+          "error": 0.19999999999998863,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 66.11548801663317,
+          "measured": 66.2,
+          "limit": 5.0,
+          "error": 0.08451198336683774,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 100000.0,
+          "measured": 100001.0,
+          "limit": 1000.0,
+          "error": 1.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 6.930786356030625,
+          "measured": 6.9,
+          "limit": 5.0,
+          "error": -0.030786356030624518,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 300000.0,
+          "measured": 300003.0,
+          "limit": 1000.0,
+          "error": 3.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 62.37707720427562,
+          "measured": 62.6,
+          "limit": 5.0,
+          "error": 0.22292279572437934,
+          "passed": true
+        },
+        {
+          "name": "H5_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H5_peak",
+          "unit": "mV",
+          "expected": 69.30786356030625,
+          "measured": 69.3,
+          "limit": 5.0,
+          "error": -0.007863560306248019,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.2,U_mV:66.2,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:6.9,n1:1,f2_Hz:300003,U2_peak_mV:62.6,n2:3,f3_Hz:500000,U3_peak_mV:69.3,n3:5",
+        "seq:1647,adc_min:3004,adc_max:3247,p2p_code:240,rms_code_x100:6382,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100006,raw_a1_code_x100:827,raw_f2_hz:300003,raw_a2_code_x100:6649,raw_f3_hz:500000,raw_a3_code_x100:6041,upp_mv_x10:2502,urms_mv_x10:662,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:69,f2_hz:300003,a2_mv_x10:626,f3_hz:500000,a3_mv_x10:693,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.2,U_mV:66.2,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:6.9,n1:1,f2_Hz:300003,U2_peak_mV:62.6,n2:3,f3_Hz:500000,U3_peak_mV:69.3,n3:5",
+        "seq:1648,adc_min:3006,adc_max:3245,p2p_code:237,rms_code_x100:6388,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100003,raw_a1_code_x100:827,raw_f2_hz:300003,raw_a2_code_x100:6655,raw_f3_hz:500000,raw_a3_code_x100:6046,upp_mv_x10:2502,urms_mv_x10:662,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:69,f2_hz:300003,a2_mv_x10:626,f3_hz:500000,a3_mv_x10:693,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.3,U_mV:66.2,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:6.9,n1:1,f2_Hz:300003,U2_peak_mV:62.6,n2:3,f3_Hz:500000,U3_peak_mV:69.3,n3:5",
+        "seq:1649,adc_min:3004,adc_max:3247,p2p_code:240,rms_code_x100:6386,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100001,raw_a1_code_x100:829,raw_f2_hz:300003,raw_a2_code_x100:6654,raw_f3_hz:500000,raw_a3_code_x100:6041,upp_mv_x10:2503,urms_mv_x10:662,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:69,f2_hz:300003,a2_mv_x10:626,f3_hz:500000,a3_mv_x10:693,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T06_100k_descending_500k",
+      "purpose": "100 kHz递减比例，五次谐波500 kHz",
+      "fundamental_hz": 100000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          0.5
+        ],
+        [
+          5,
+          0.25
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.3196135172452539,
+        "raw_maximum": 1.3196135172452539,
+        "raw_vpp": 2.6392270344905078,
+        "rate": 4.0272637630703266e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 76.73578065796902,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 100000.0,
+            "peak_mv": 94.72470413984733
+          },
+          {
+            "order": 2,
+            "frequency_hz": 200000.0,
+            "peak_mv": 47.362352069923666
+          },
+          {
+            "order": 5,
+            "frequency_hz": 500000.0,
+            "peak_mv": 23.681176034961833
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.0,
+        "rms_mv": 76.8,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 100001.0,
+            "peak_mv": 94.7
+          },
+          {
+            "order": 2,
+            "frequency_hz": 200002.0,
+            "peak_mv": 47.5
+          },
+          {
+            "order": 5,
+            "frequency_hz": 500000.0,
+            "peak_mv": 23.7
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.0,
+          "limit": 5.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 76.73578065796902,
+          "measured": 76.8,
+          "limit": 5.0,
+          "error": 0.0642193420309809,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 100000.0,
+          "measured": 100001.0,
+          "limit": 1000.0,
+          "error": 1.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 94.72470413984733,
+          "measured": 94.7,
+          "limit": 5.0,
+          "error": -0.024704139847329998,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 200000.0,
+          "measured": 200002.0,
+          "limit": 1000.0,
+          "error": 2.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 47.362352069923666,
+          "measured": 47.5,
+          "limit": 5.0,
+          "error": 0.13764793007633358,
+          "passed": true
+        },
+        {
+          "name": "H5_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H5_peak",
+          "unit": "mV",
+          "expected": 23.681176034961833,
+          "measured": 23.7,
+          "limit": 5.0,
+          "error": 0.01882396503816608,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.0,U_mV:76.8,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:94.7,n1:1,f2_Hz:200002,U2_peak_mV:47.5,n2:2,f3_Hz:500000,U3_peak_mV:23.7,n3:5",
+        "seq:1693,adc_min:2981,adc_max:3271,p2p_code:289,rms_code_x100:9002,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100001,raw_a1_code_x100:11327,raw_f2_hz:200002,raw_a2_code_x100:5419,raw_f3_hz:500000,raw_a3_code_x100:2066,upp_mv_x10:2500,urms_mv_x10:768,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:947,f2_hz:200002,a2_mv_x10:475,f3_hz:500000,a3_mv_x10:237,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:76.8,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:94.7,n1:1,f2_Hz:200002,U2_peak_mV:47.5,n2:2,f3_Hz:500000,U3_peak_mV:23.7,n3:5",
+        "seq:1694,adc_min:2982,adc_max:3272,p2p_code:288,rms_code_x100:8996,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100001,raw_a1_code_x100:11329,raw_f2_hz:200002,raw_a2_code_x100:5419,raw_f3_hz:500000,raw_a3_code_x100:2063,upp_mv_x10:2500,urms_mv_x10:768,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:947,f2_hz:200002,a2_mv_x10:475,f3_hz:500000,a3_mv_x10:237,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:76.8,f_base_Hz:100001,component_count:3,signal_valid:1,f1_Hz:100001,U1_peak_mV:94.7,n1:1,f2_Hz:200002,U2_peak_mV:47.5,n2:2,f3_Hz:500000,U3_peak_mV:23.6,n3:5",
+        "seq:1695,adc_min:2982,adc_max:3272,p2p_code:288,rms_code_x100:8992,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:100001,raw_a1_code_x100:11325,raw_f2_hz:200002,raw_a2_code_x100:5416,raw_f3_hz:500000,raw_a3_code_x100:2060,upp_mv_x10:2500,urms_mv_x10:768,comp_count:3,avg_count:9,f1_hz:100001,a1_mv_x10:947,f2_hz:200002,a2_mv_x10:475,f3_hz:500000,a3_mv_x10:236,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T07_125k_equal_500k",
+      "purpose": "125/375/500 kHz三分量等幅边界",
+      "fundamental_hz": 125000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          3,
+          1.0
+        ],
+        [
+          4,
+          1.0
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -2.3930318222110043,
+        "raw_maximum": 2.3930318222110034,
+        "raw_vpp": 4.786063644422008,
+        "rate": 7.303176434250934e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 63.97453953725557,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 125000.0,
+            "peak_mv": 52.23499279859481
+          },
+          {
+            "order": 3,
+            "frequency_hz": 375000.0,
+            "peak_mv": 52.23499279859481
+          },
+          {
+            "order": 4,
+            "frequency_hz": 500000.0,
+            "peak_mv": 52.23499279859481
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.1,
+        "rms_mv": 64.0,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 125001.5,
+            "peak_mv": 52.2
+          },
+          {
+            "order": 3,
+            "frequency_hz": 375004.0,
+            "peak_mv": 52.4
+          },
+          {
+            "order": 4,
+            "frequency_hz": 500000.0,
+            "peak_mv": 52.1
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.1,
+          "limit": 5.0,
+          "error": 0.09999999999999432,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 63.97453953725557,
+          "measured": 64.0,
+          "limit": 5.0,
+          "error": 0.025460462744426593,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 125000.0,
+          "measured": 125001.5,
+          "limit": 1000.0,
+          "error": 1.5,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 52.23499279859481,
+          "measured": 52.2,
+          "limit": 5.0,
+          "error": -0.034992798594807084,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 375000.0,
+          "measured": 375004.0,
+          "limit": 1000.0,
+          "error": 4.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 52.23499279859481,
+          "measured": 52.4,
+          "limit": 5.0,
+          "error": 0.16500720140518865,
+          "passed": true
+        },
+        {
+          "name": "H4_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H4_peak",
+          "unit": "mV",
+          "expected": 52.23499279859481,
+          "measured": 52.1,
+          "limit": 5.0,
+          "error": -0.1349927985948085,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.1,U_mV:64.0,f_base_Hz:125002,component_count:3,signal_valid:1,f1_Hz:125002,U1_peak_mV:52.2,n1:1,f2_Hz:375004,U2_peak_mV:52.4,n2:3,f3_Hz:500000,U3_peak_mV:52.1,n3:4",
+        "seq:1739,adc_min:3002,adc_max:3247,p2p_code:243,rms_code_x100:6555,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125002,raw_a1_code_x100:6178,raw_f2_hz:375004,raw_a2_code_x100:5208,raw_f3_hz:500000,raw_a3_code_x100:4539,upp_mv_x10:2501,urms_mv_x10:640,comp_count:3,avg_count:9,f1_hz:125002,a1_mv_x10:522,f2_hz:375004,a2_mv_x10:524,f3_hz:500000,a3_mv_x10:521,p2p_spread_mv_x10:3,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.1,U_mV:64.0,f_base_Hz:125001,component_count:3,signal_valid:1,f1_Hz:125001,U1_peak_mV:52.2,n1:1,f2_Hz:375004,U2_peak_mV:52.4,n2:3,f3_Hz:500000,U3_peak_mV:52.1,n3:4",
+        "seq:1740,adc_min:3000,adc_max:3248,p2p_code:246,rms_code_x100:6558,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125001,raw_a1_code_x100:6187,raw_f2_hz:375004,raw_a2_code_x100:5200,raw_f3_hz:500000,raw_a3_code_x100:4546,upp_mv_x10:2501,urms_mv_x10:640,comp_count:3,avg_count:9,f1_hz:125001,a1_mv_x10:522,f2_hz:375004,a2_mv_x10:524,f3_hz:500000,a3_mv_x10:521,p2p_spread_mv_x10:3,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.1,U_mV:64.0,f_base_Hz:125001,component_count:3,signal_valid:1,f1_Hz:125001,U1_peak_mV:52.2,n1:1,f2_Hz:375004,U2_peak_mV:52.4,n2:3,f3_Hz:500000,U3_peak_mV:52.1,n3:4",
+        "seq:1741,adc_min:3000,adc_max:3249,p2p_code:248,rms_code_x100:6560,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125001,raw_a1_code_x100:6188,raw_f2_hz:375004,raw_a2_code_x100:5209,raw_f3_hz:500000,raw_a3_code_x100:4546,upp_mv_x10:2501,urms_mv_x10:640,comp_count:3,avg_count:9,f1_hz:125001,a1_mv_x10:522,f2_hz:375004,a2_mv_x10:524,f3_hz:500000,a3_mv_x10:521,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T08_125k_2to1to1_500k",
+      "purpose": "125/375/500 kHz，2:1:1比例",
+      "fundamental_hz": 125000.0,
+      "terms": [
+        [
+          1,
+          0.5
+        ],
+        [
+          3,
+          0.25
+        ],
+        [
+          4,
+          0.25
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -0.716857524703709,
+        "raw_maximum": 0.7168575247037091,
+        "raw_vpp": 1.433715049407418,
+        "rate": 2.187742316061004e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 75.50536315971429,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 125000.0,
+            "peak_mv": 87.18608349104301
+          },
+          {
+            "order": 3,
+            "frequency_hz": 375000.0,
+            "peak_mv": 43.593041745521504
+          },
+          {
+            "order": 4,
+            "frequency_hz": 500000.0,
+            "peak_mv": 43.593041745521504
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.2,
+        "rms_mv": 75.5,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 125001.0,
+            "peak_mv": 87.1
+          },
+          {
+            "order": 3,
+            "frequency_hz": 375004.0,
+            "peak_mv": 43.7
+          },
+          {
+            "order": 4,
+            "frequency_hz": 500000.0,
+            "peak_mv": 43.5
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.2,
+          "limit": 5.0,
+          "error": 0.19999999999998863,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 75.50536315971429,
+          "measured": 75.5,
+          "limit": 5.0,
+          "error": -0.005363159714292465,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 125000.0,
+          "measured": 125001.0,
+          "limit": 1000.0,
+          "error": 1.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 87.18608349104301,
+          "measured": 87.1,
+          "limit": 5.0,
+          "error": -0.08608349104301283,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 375000.0,
+          "measured": 375004.0,
+          "limit": 1000.0,
+          "error": 4.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 43.593041745521504,
+          "measured": 43.7,
+          "limit": 5.0,
+          "error": 0.10695825447849927,
+          "passed": true
+        },
+        {
+          "name": "H4_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H4_peak",
+          "unit": "mV",
+          "expected": 43.593041745521504,
+          "measured": 43.5,
+          "limit": 5.0,
+          "error": -0.09304174552150357,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.2,U_mV:75.5,f_base_Hz:125001,component_count:3,signal_valid:1,f1_Hz:125001,U1_peak_mV:87.1,n1:1,f2_Hz:375004,U2_peak_mV:43.8,n2:3,f3_Hz:500000,U3_peak_mV:43.5,n3:4",
+        "seq:1785,adc_min:2994,adc_max:3252,p2p_code:256,rms_code_x100:8364,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125001,raw_a1_code_x100:10324,raw_f2_hz:375004,raw_a2_code_x100:4350,raw_f3_hz:500000,raw_a3_code_x100:3794,upp_mv_x10:2502,urms_mv_x10:755,comp_count:3,avg_count:9,f1_hz:125001,a1_mv_x10:871,f2_hz:375004,a2_mv_x10:438,f3_hz:500000,a3_mv_x10:435,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.1,U_mV:75.5,f_base_Hz:125001,component_count:3,signal_valid:1,f1_Hz:125001,U1_peak_mV:87.1,n1:1,f2_Hz:375004,U2_peak_mV:43.7,n2:3,f3_Hz:500000,U3_peak_mV:43.5,n3:4",
+        "seq:1786,adc_min:2996,adc_max:3253,p2p_code:255,rms_code_x100:8364,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125001,raw_a1_code_x100:10325,raw_f2_hz:375004,raw_a2_code_x100:4339,raw_f3_hz:500000,raw_a3_code_x100:3794,upp_mv_x10:2501,urms_mv_x10:755,comp_count:3,avg_count:9,f1_hz:125001,a1_mv_x10:871,f2_hz:375004,a2_mv_x10:437,f3_hz:500000,a3_mv_x10:435,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.1,U_mV:75.5,f_base_Hz:125001,component_count:3,signal_valid:1,f1_Hz:125001,U1_peak_mV:87.1,n1:1,f2_Hz:375004,U2_peak_mV:43.7,n2:3,f3_Hz:500000,U3_peak_mV:43.5,n3:4",
+        "seq:1787,adc_min:2997,adc_max:3254,p2p_code:255,rms_code_x100:8364,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:125001,raw_a1_code_x100:10327,raw_f2_hz:375004,raw_a2_code_x100:4340,raw_f3_hz:500000,raw_a3_code_x100:3798,upp_mv_x10:2501,urms_mv_x10:755,comp_count:3,avg_count:9,f1_hz:125001,a1_mv_x10:871,f2_hz:375004,a2_mv_x10:437,f3_hz:500000,a3_mv_x10:435,p2p_spread_mv_x10:3,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T09_166p5k_near_500k",
+      "purpose": "500 Hz频率网格，最高499.5 kHz",
+      "fundamental_hz": 166500.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          0.5
+        ],
+        [
+          3,
+          0.2
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.3587900245190256,
+        "raw_maximum": 1.3587900245190256,
+        "raw_vpp": 2.7175800490380513,
+        "rate": 4.146824623917434e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 73.88180897327501,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 166500.0,
+            "peak_mv": 91.99361030358357
+          },
+          {
+            "order": 2,
+            "frequency_hz": 333000.0,
+            "peak_mv": 45.99680515179178
+          },
+          {
+            "order": 3,
+            "frequency_hz": 499500.0,
+            "peak_mv": 18.398722060716715
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.45,
+        "rms_mv": 73.95,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 166502.0,
+            "peak_mv": 92.0
+          },
+          {
+            "order": 2,
+            "frequency_hz": 333004.0,
+            "peak_mv": 46.2
+          },
+          {
+            "order": 3,
+            "frequency_hz": 499506.0,
+            "peak_mv": 18.4
+          }
+        ],
+        "component_count": 3,
+        "signal_valid": 1,
+        "peak_count": 3,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.45,
+          "limit": 5.0,
+          "error": 0.44999999999998863,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 73.88180897327501,
+          "measured": 73.95,
+          "limit": 5.0,
+          "error": 0.068191026724989,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 166500.0,
+          "measured": 166502.0,
+          "limit": 1000.0,
+          "error": 2.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 91.99361030358357,
+          "measured": 92.0,
+          "limit": 5.0,
+          "error": 0.006389696416434276,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 333000.0,
+          "measured": 333004.0,
+          "limit": 1000.0,
+          "error": 4.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 45.99680515179178,
+          "measured": 46.2,
+          "limit": 5.0,
+          "error": 0.20319484820821998,
+          "passed": true
+        },
+        {
+          "name": "H3_frequency",
+          "unit": "Hz",
+          "expected": 499500.0,
+          "measured": 499506.0,
+          "limit": 1000.0,
+          "error": 6.0,
+          "passed": true
+        },
+        {
+          "name": "H3_peak",
+          "unit": "mV",
+          "expected": 18.398722060716715,
+          "measured": 18.4,
+          "limit": 5.0,
+          "error": 0.001277939283284013,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.5,U_mV:74.0,f_base_Hz:166502,component_count:3,signal_valid:1,f1_Hz:166502,U1_peak_mV:92.0,n1:1,f2_Hz:333004,U2_peak_mV:46.2,n2:2,f3_Hz:499506,U3_peak_mV:18.4,n3:3",
+        "seq:1831,adc_min:2985,adc_max:3263,p2p_code:276,rms_code_x100:8361,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:166502,raw_a1_code_x100:10701,raw_f2_hz:333004,raw_a2_code_x100:4771,raw_f3_hz:499505,raw_a3_code_x100:1604,upp_mv_x10:2505,urms_mv_x10:740,comp_count:3,avg_count:9,f1_hz:166502,a1_mv_x10:920,f2_hz:333004,a2_mv_x10:462,f3_hz:499506,a3_mv_x10:184,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.5,U_mV:74.0,f_base_Hz:166502,component_count:3,signal_valid:1,f1_Hz:166502,U1_peak_mV:92.0,n1:1,f2_Hz:333004,U2_peak_mV:46.2,n2:2,f3_Hz:499506,U3_peak_mV:18.4,n3:3",
+        "seq:1832,adc_min:2985,adc_max:3263,p2p_code:276,rms_code_x100:8360,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:166502,raw_a1_code_x100:10697,raw_f2_hz:333004,raw_a2_code_x100:4767,raw_f3_hz:499506,raw_a3_code_x100:1609,upp_mv_x10:2505,urms_mv_x10:740,comp_count:3,avg_count:9,f1_hz:166502,a1_mv_x10:920,f2_hz:333004,a2_mv_x10:462,f3_hz:499506,a3_mv_x10:184,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.5,U_mV:74.0,f_base_Hz:166502,component_count:3,signal_valid:1,f1_Hz:166502,U1_peak_mV:92.0,n1:1,f2_Hz:333004,U2_peak_mV:46.2,n2:2,f3_Hz:499506,U3_peak_mV:18.4,n3:3",
+        "seq:1833,adc_min:2985,adc_max:3263,p2p_code:276,rms_code_x100:8362,analysis_ready:1,measurement_ready:1,peak_count:3,raw_f1_hz:166502,raw_a1_code_x100:10700,raw_f2_hz:333004,raw_a2_code_x100:4768,raw_f3_hz:499506,raw_a3_code_x100:1607,upp_mv_x10:2505,urms_mv_x10:740,comp_count:3,avg_count:9,f1_hz:166502,a1_mv_x10:920,f2_hz:333004,a2_mv_x10:462,f3_hz:499506,a3_mv_x10:184,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T10_200k_small_second",
+      "purpose": "200/400 kHz双分量，小二次谐波",
+      "fundamental_hz": 200000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          0.08
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.0124150712640767,
+        "raw_maximum": 1.012415071264077,
+        "raw_vpp": 2.0248301425281534,
+        "rate": 3.0897398946015104e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 87.58338528497889,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 200000.0,
+            "peak_mv": 123.46714657648079
+          },
+          {
+            "order": 2,
+            "frequency_hz": 400000.0,
+            "peak_mv": 9.877371726118463
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.0,
+        "rms_mv": 87.6,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 200002.0,
+            "peak_mv": 123.5
+          },
+          {
+            "order": 2,
+            "frequency_hz": 400004.5,
+            "peak_mv": 9.9
+          }
+        ],
+        "component_count": 2,
+        "signal_valid": 1,
+        "peak_count": 2,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.0,
+          "limit": 5.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 87.58338528497889,
+          "measured": 87.6,
+          "limit": 5.0,
+          "error": 0.016614715021106008,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 200000.0,
+          "measured": 200002.0,
+          "limit": 1000.0,
+          "error": 2.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 123.46714657648079,
+          "measured": 123.5,
+          "limit": 5.0,
+          "error": 0.03285342351921372,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 400000.0,
+          "measured": 400004.5,
+          "limit": 1000.0,
+          "error": 4.5,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 9.877371726118463,
+          "measured": 9.9,
+          "limit": 5.0,
+          "error": 0.022628273881537098,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.1,U_mV:87.6,f_base_Hz:200002,component_count:2,signal_valid:1,f1_Hz:200002,U1_peak_mV:123.5,n1:1,f2_Hz:400004,U2_peak_mV:9.9,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1890,adc_min:2982,adc_max:3269,p2p_code:286,rms_code_x100:9991,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:200002,raw_a1_code_x100:14096,raw_f2_hz:400005,raw_a2_code_x100:959,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2501,urms_mv_x10:876,comp_count:2,avg_count:9,f1_hz:200002,a1_mv_x10:1235,f2_hz:400004,a2_mv_x10:99,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:87.6,f_base_Hz:200002,component_count:2,signal_valid:1,f1_Hz:200002,U1_peak_mV:123.5,n1:1,f2_Hz:400004,U2_peak_mV:9.9,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1892,adc_min:2982,adc_max:3270,p2p_code:285,rms_code_x100:9985,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:200002,raw_a1_code_x100:14087,raw_f2_hz:400006,raw_a2_code_x100:947,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2500,urms_mv_x10:876,comp_count:2,avg_count:9,f1_hz:200002,a1_mv_x10:1235,f2_hz:400004,a2_mv_x10:99,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:4,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:87.6,f_base_Hz:200002,component_count:2,signal_valid:1,f1_Hz:200002,U1_peak_mV:123.5,n1:1,f2_Hz:400004,U2_peak_mV:9.9,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1894,adc_min:2982,adc_max:3269,p2p_code:285,rms_code_x100:9992,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:200002,raw_a1_code_x100:14096,raw_f2_hz:400002,raw_a2_code_x100:959,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2500,urms_mv_x10:876,comp_count:2,avg_count:9,f1_hz:200002,a1_mv_x10:1235,f2_hz:400004,a2_mv_x10:99,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:4,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T11_249p5k_equal_near_boundary",
+      "purpose": "249.5/499 kHz双分量近边界",
+      "fundamental_hz": 249500.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          1.0
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.7601724304577648,
+        "raw_maximum": 1.7601724304577648,
+        "raw_vpp": 3.5203448609155297,
+        "rate": 5.3717838998314305e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 71.0157697263168,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 249500.0,
+            "peak_mv": 71.0157697263168
+          },
+          {
+            "order": 2,
+            "frequency_hz": 499000.0,
+            "peak_mv": 71.0157697263168
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 249.6,
+        "rms_mv": 70.9,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 249503.0,
+            "peak_mv": 71.0
+          },
+          {
+            "order": 2,
+            "frequency_hz": 499006.0,
+            "peak_mv": 70.8
+          }
+        ],
+        "component_count": 2,
+        "signal_valid": 1,
+        "peak_count": 2,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 249.6,
+          "limit": 5.0,
+          "error": -0.4000000000000057,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 71.0157697263168,
+          "measured": 70.9,
+          "limit": 5.0,
+          "error": -0.11576972631679894,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 249500.0,
+          "measured": 249503.0,
+          "limit": 1000.0,
+          "error": 3.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 71.0157697263168,
+          "measured": 71.0,
+          "limit": 5.0,
+          "error": -0.015769726316804622,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 499000.0,
+          "measured": 499006.0,
+          "limit": 1000.0,
+          "error": 6.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 71.0157697263168,
+          "measured": 70.8,
+          "limit": 5.0,
+          "error": -0.21576972631680746,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:249.6,U_mV:70.9,f_base_Hz:249503,component_count:2,signal_valid:1,f1_Hz:249503,U1_peak_mV:71.0,n1:1,f2_Hz:499006,U2_peak_mV:70.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1950,adc_min:3001,adc_max:3249,p2p_code:247,rms_code_x100:7067,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:249503,raw_a1_code_x100:7852,raw_f2_hz:499006,raw_a2_code_x100:6182,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2496,urms_mv_x10:709,comp_count:2,avg_count:9,f1_hz:249503,a1_mv_x10:710,f2_hz:499006,a2_mv_x10:708,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.7,U_mV:70.9,f_base_Hz:249503,component_count:2,signal_valid:1,f1_Hz:249503,U1_peak_mV:71.0,n1:1,f2_Hz:499006,U2_peak_mV:70.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1952,adc_min:3000,adc_max:3249,p2p_code:247,rms_code_x100:7069,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:249503,raw_a1_code_x100:7855,raw_f2_hz:499006,raw_a2_code_x100:6184,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2497,urms_mv_x10:709,comp_count:2,avg_count:9,f1_hz:249503,a1_mv_x10:710,f2_hz:499006,a2_mv_x10:708,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.7,U_mV:70.9,f_base_Hz:249503,component_count:2,signal_valid:1,f1_Hz:249503,U1_peak_mV:71.0,n1:1,f2_Hz:499006,U2_peak_mV:70.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:1954,adc_min:3000,adc_max:3249,p2p_code:246,rms_code_x100:7067,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:249503,raw_a1_code_x100:7851,raw_f2_hz:499006,raw_a2_code_x100:6180,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2497,urms_mv_x10:709,comp_count:2,avg_count:9,f1_hz:249503,a1_mv_x10:710,f2_hz:499006,a2_mv_x10:708,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T12_250k_3to1_boundary",
+      "purpose": "250/500 kHz双分量，3:1比例",
+      "fundamental_hz": 250000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ],
+        [
+          2,
+          0.3333333333333333
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.1616648000579493,
+        "raw_maximum": 1.1616648000579493,
+        "raw_vpp": 2.3233296001158985,
+        "rate": 3.5452278208500906e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 80.20342792330757,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 250000.0,
+            "peak_mv": 107.60419011901232
+          },
+          {
+            "order": 2,
+            "frequency_hz": 500000.0,
+            "peak_mv": 35.868063373004105
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 250.0,
+        "rms_mv": 80.2,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 250003.0,
+            "peak_mv": 107.6
+          },
+          {
+            "order": 2,
+            "frequency_hz": 500000.0,
+            "peak_mv": 35.8
+          }
+        ],
+        "component_count": 2,
+        "signal_valid": 1,
+        "peak_count": 2,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 250.0,
+          "limit": 5.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 80.20342792330757,
+          "measured": 80.2,
+          "limit": 5.0,
+          "error": -0.0034279233075693583,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 250000.0,
+          "measured": 250003.0,
+          "limit": 1000.0,
+          "error": 3.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 107.60419011901232,
+          "measured": 107.6,
+          "limit": 5.0,
+          "error": -0.004190119012321247,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 35.868063373004105,
+          "measured": 35.8,
+          "limit": 5.0,
+          "error": -0.06806337300410803,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:250.0,U_mV:80.2,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:107.6,n1:1,f2_Hz:500000,U2_peak_mV:35.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2012,adc_min:2992,adc_max:3255,p2p_code:261,rms_code_x100:8696,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250003,raw_a1_code_x100:11895,raw_f2_hz:500000,raw_a2_code_x100:3121,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2500,urms_mv_x10:802,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:1076,f2_hz:500000,a2_mv_x10:358,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:80.2,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:107.6,n1:1,f2_Hz:500000,U2_peak_mV:35.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2014,adc_min:2992,adc_max:3256,p2p_code:262,rms_code_x100:8694,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250003,raw_a1_code_x100:11889,raw_f2_hz:500000,raw_a2_code_x100:3121,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2500,urms_mv_x10:802,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:1076,f2_hz:500000,a2_mv_x10:358,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:3,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:250.0,U_mV:80.2,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:107.7,n1:1,f2_Hz:500000,U2_peak_mV:35.8,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2016,adc_min:2991,adc_max:3256,p2p_code:264,rms_code_x100:8700,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250003,raw_a1_code_x100:11902,raw_f2_hz:500000,raw_a2_code_x100:3122,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2500,urms_mv_x10:802,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:1077,f2_hz:500000,a2_mv_x10:358,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:2,amp_spread_mv_x10:1,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T13_250k_weak_fundamental_boundary",
+      "purpose": "250/500 kHz，弱基波强二次谐波",
+      "fundamental_hz": 250000.0,
+      "terms": [
+        [
+          1,
+          0.1
+        ],
+        [
+          2,
+          1.0
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.07132037512938,
+        "raw_maximum": 1.0713203751293798,
+        "raw_vpp": 2.14264075025876,
+        "rate": 3.269510102021484e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 82.9156171061077,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 250000.0,
+            "peak_mv": 11.667844923130874
+          },
+          {
+            "order": 2,
+            "frequency_hz": 500000.0,
+            "peak_mv": 116.67844923130873
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 249.3,
+        "rms_mv": 82.65,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 250003.0,
+            "peak_mv": 11.7
+          },
+          {
+            "order": 2,
+            "frequency_hz": 500000.0,
+            "peak_mv": 116.3
+          }
+        ],
+        "component_count": 2,
+        "signal_valid": 1,
+        "peak_count": 2,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 249.3,
+          "limit": 5.0,
+          "error": -0.6999999999999886,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 82.9156171061077,
+          "measured": 82.65,
+          "limit": 5.0,
+          "error": -0.2656171061076975,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 250000.0,
+          "measured": 250003.0,
+          "limit": 1000.0,
+          "error": 3.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 11.667844923130874,
+          "measured": 11.7,
+          "limit": 5.0,
+          "error": 0.032155076869125665,
+          "passed": true
+        },
+        {
+          "name": "H2_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H2_peak",
+          "unit": "mV",
+          "expected": 116.67844923130873,
+          "measured": 116.3,
+          "limit": 5.0,
+          "error": -0.37844923130873553,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:249.3,U_mV:82.6,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:11.7,n1:1,f2_Hz:500000,U2_peak_mV:116.3,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2074,adc_min:3012,adc_max:3239,p2p_code:224,rms_code_x100:7228,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250004,raw_a1_code_x100:1296,raw_f2_hz:500000,raw_a2_code_x100:10140,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2493,urms_mv_x10:826,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:117,f2_hz:500000,a2_mv_x10:1163,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:3,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.3,U_mV:82.6,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:11.7,n1:1,f2_Hz:500000,U2_peak_mV:116.3,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2076,adc_min:3013,adc_max:3238,p2p_code:224,rms_code_x100:7233,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250003,raw_a1_code_x100:1290,raw_f2_hz:500000,raw_a2_code_x100:10146,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2493,urms_mv_x10:826,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:117,f2_hz:500000,a2_mv_x10:1163,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:3,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.2,U_mV:82.6,f_base_Hz:250003,component_count:2,signal_valid:1,f1_Hz:250003,U1_peak_mV:11.7,n1:1,f2_Hz:500000,U2_peak_mV:116.3,n2:2,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2078,adc_min:3015,adc_max:3239,p2p_code:222,rms_code_x100:7225,analysis_ready:1,measurement_ready:1,peak_count:2,raw_f1_hz:250001,raw_a1_code_x100:1303,raw_f2_hz:500000,raw_a2_code_x100:10127,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2492,urms_mv_x10:826,comp_count:2,avg_count:9,f1_hz:250003,a1_mv_x10:117,f2_hz:500000,a2_mv_x10:1163,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:4,amp_spread_mv_x10:3,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    },
+    {
+      "name": "T14_single_500k_boundary",
+      "purpose": "500 kHz单频上边界",
+      "fundamental_hz": 500000.0,
+      "terms": [
+        [
+          1,
+          1.0
+        ]
+      ],
+      "status": "PASS",
+      "bsv": {
+        "point_count": 1000,
+        "raw_minimum": -1.0,
+        "raw_maximum": 1.0,
+        "raw_vpp": 2.0,
+        "rate": 3.051850947599719e-05,
+        "code_minimum": -32767,
+        "code_maximum": 32767,
+        "bsv_bytes": 2140
+      },
+      "expected": {
+        "upp_mv": 250.0,
+        "rms_mv": 88.38834764831844,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 500000.0,
+            "peak_mv": 125.0
+          }
+        ]
+      },
+      "measured": {
+        "upp_mv": 249.4,
+        "rms_mv": 88.2,
+        "components": [
+          {
+            "order": 1,
+            "frequency_hz": 500000.0,
+            "peak_mv": 124.7
+          }
+        ],
+        "component_count": 1,
+        "signal_valid": 0,
+        "peak_count": 1,
+        "adc_overrun_max": 0
+      },
+      "comparisons": [
+        {
+          "name": "Upp",
+          "unit": "mV",
+          "expected": 250.0,
+          "measured": 249.4,
+          "limit": 5.0,
+          "error": -0.5999999999999943,
+          "passed": true
+        },
+        {
+          "name": "Urms",
+          "unit": "mV",
+          "expected": 88.38834764831844,
+          "measured": 88.2,
+          "limit": 5.0,
+          "error": -0.18834764831844097,
+          "passed": true
+        },
+        {
+          "name": "H1_frequency",
+          "unit": "Hz",
+          "expected": 500000.0,
+          "measured": 500000.0,
+          "limit": 1000.0,
+          "error": 0.0,
+          "passed": true
+        },
+        {
+          "name": "H1_peak",
+          "unit": "mV",
+          "expected": 125.0,
+          "measured": 124.7,
+          "limit": 5.0,
+          "error": -0.29999999999999716,
+          "passed": true
+        }
+      ],
+      "serial_evidence": [
+        "Upp_mV:249.4,U_mV:88.2,f_base_Hz:500000,component_count:1,signal_valid:0,f1_Hz:500000,U1_peak_mV:124.7,n1:1,f2_Hz:0,U2_peak_mV:0.0,n2:0,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2146,adc_min:3021,adc_max:3231,p2p_code:208,rms_code_x100:7700,analysis_ready:1,measurement_ready:1,peak_count:1,raw_f1_hz:500000,raw_a1_code_x100:10888,raw_f2_hz:0,raw_a2_code_x100:0,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2494,urms_mv_x10:882,comp_count:1,avg_count:9,f1_hz:500000,a1_mv_x10:1247,f2_hz:0,a2_mv_x10:0,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:5,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.4,U_mV:88.2,f_base_Hz:500000,component_count:1,signal_valid:0,f1_Hz:500000,U1_peak_mV:124.7,n1:1,f2_Hz:0,U2_peak_mV:0.0,n2:0,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2148,adc_min:3015,adc_max:3236,p2p_code:220,rms_code_x100:7692,analysis_ready:1,measurement_ready:1,peak_count:1,raw_f1_hz:500000,raw_a1_code_x100:10877,raw_f2_hz:0,raw_a2_code_x100:0,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2494,urms_mv_x10:882,comp_count:1,avg_count:9,f1_hz:500000,a1_mv_x10:1247,f2_hz:0,a2_mv_x10:0,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:5,amp_spread_mv_x10:2,analysis_us:0,analysis_max_us:70656,adc_overrun:0",
+        "Upp_mV:249.3,U_mV:88.2,f_base_Hz:500000,component_count:1,signal_valid:0,f1_Hz:500000,U1_peak_mV:124.7,n1:1,f2_Hz:0,U2_peak_mV:0.0,n2:0,f3_Hz:0,U3_peak_mV:0.0,n3:0",
+        "seq:2150,adc_min:3017,adc_max:3234,p2p_code:216,rms_code_x100:7681,analysis_ready:1,measurement_ready:1,peak_count:1,raw_f1_hz:500000,raw_a1_code_x100:10855,raw_f2_hz:0,raw_a2_code_x100:0,raw_f3_hz:0,raw_a3_code_x100:0,upp_mv_x10:2493,urms_mv_x10:882,comp_count:1,avg_count:9,f1_hz:500000,a1_mv_x10:1247,f2_hz:0,a2_mv_x10:0,f3_hz:0,a3_mv_x10:0,p2p_spread_mv_x10:8,amp_spread_mv_x10:4,analysis_us:0,analysis_max_us:70656,adc_overrun:0"
+      ]
+    }
+  ]
+}

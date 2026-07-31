@@ -5,6 +5,7 @@
 
 #include "signal_hmi_app.h"
 #include "signal_acquisition_service.h"
+#include "vofa_telemetry_service.h"
 #include "stm32g4xx_hal.h"
 
 typedef enum {
@@ -13,11 +14,12 @@ typedef enum {
     SIGNAL_APP_ERROR_HMI_INIT,
     SIGNAL_APP_ERROR_ACQUISITION_INIT,
     SIGNAL_APP_ERROR_HMI_RUNTIME,
-    SIGNAL_APP_ERROR_ACQUISITION_RUNTIME
+    SIGNAL_APP_ERROR_ACQUISITION_RUNTIME,
+    SIGNAL_APP_ERROR_VOFA_INIT,
+    SIGNAL_APP_ERROR_VOFA_RUNTIME
 } signal_app_error_t;
 
 typedef struct {
-    TIM_HandleTypeDef *adc_timer;
     UART_HandleTypeDef *hmi_uart;
     const signal_measurement_calibration_t *measurement_calibration;
 } signal_app_config_t;
@@ -28,6 +30,7 @@ typedef struct {
     HAL_StatusTypeDef last_hal_status;
     uint32_t process_count;
     signal_hmi_status_t hmi;
+    vofa_telemetry_status_t vofa;
     signal_acquisition_status_t acquisition;
 } signal_app_status_t;
 

@@ -1,0 +1,83 @@
+{
+  "input": "D:\\01_Projects\\2026_EDC_Signal\\G474\\outputs\\019fb655-4b94-7fc2-a7a5-46aa763fc330\\frequency_sweep_raw.csv",
+  "grid": {
+    "start_hz": 10000,
+    "stop_hz": 500000,
+    "step_hz": 500,
+    "repeats": 3,
+    "expected_peak_mv": 100.0,
+    "expected_vpp_mv": 200.0,
+    "expected_rms_mv": 70.71067811865474
+  },
+  "stage_metrics": {
+    "after": {
+      "row_count": 2943,
+      "frequency_point_count": 981,
+      "max_abs_peak_error_mv": 0.29999999999999716,
+      "p95_abs_peak_error_mv": 0.20000000000000284,
+      "max_abs_vpp_error_mv": 0.5666666666666913,
+      "p95_abs_vpp_error_mv": 0.46666666666666856,
+      "max_abs_rms_error_mv": 0.18932188134526484,
+      "max_abs_frequency_error_hz": 6.0,
+      "max_adc_overrun": 0
+    },
+    "before": {
+      "row_count": 2943,
+      "frequency_point_count": 981,
+      "max_abs_peak_error_mv": 0.9000000000000199,
+      "p95_abs_peak_error_mv": 0.7999999999999972,
+      "max_abs_vpp_error_mv": 1.9000000000000057,
+      "p95_abs_vpp_error_mv": 1.5333333333333314,
+      "max_abs_rms_error_mv": 0.6773447853214094,
+      "max_abs_frequency_error_hz": 6.0,
+      "max_adc_overrun": 0
+    }
+  },
+  "compensation": {
+    "source_stage": "before",
+    "smoothing": "median window 9",
+    "target_peak_error_mv": 0.35,
+    "max_nodes": 32,
+    "selected_node_count": 9,
+    "predicted_max_abs_peak_error_mv": 0.1545493043366406,
+    "predicted_p95_abs_peak_error_mv": 0.12229996314678715,
+    "nodes": [
+      {
+        "frequency_hz": 10000,
+        "correction_gain": 1.0232123672459121
+      },
+      {
+        "frequency_hz": 52000,
+        "correction_gain": 1.0274610965726507
+      },
+      {
+        "frequency_hz": 110500,
+        "correction_gain": 1.0411754668338395
+      },
+      {
+        "frequency_hz": 180000,
+        "correction_gain": 1.0696714221833508
+      },
+      {
+        "frequency_hz": 236000,
+        "correction_gain": 1.1009701161479435
+      },
+      {
+        "frequency_hz": 294000,
+        "correction_gain": 1.1423389648473856
+      },
+      {
+        "frequency_hz": 356000,
+        "correction_gain": 1.1974368720062283
+      },
+      {
+        "frequency_hz": 419500,
+        "correction_gain": 1.2654910392709753
+      },
+      {
+        "frequency_hz": 500000,
+        "correction_gain": 1.3662786720638438
+      }
+    ]
+  }
+}

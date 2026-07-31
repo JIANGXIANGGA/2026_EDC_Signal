@@ -4,7 +4,12 @@
 #include <string.h>
 
 #define ADC_INTERNAL_12BIT_TOTAL_CYCLES 15U
-#define ADC_INTERNAL_MAX_SAMPLE_RATE_HZ 4000000U
+#define ADC_INTERNAL_ADC_CLOCK_HZ 60000000U
+
+_Static_assert(ADC_INTERNAL_ADC_CLOCK_HZ ==
+                   (ADC_INTERNAL_SAMPLE_RATE_HZ *
+                    ADC_INTERNAL_12BIT_TOTAL_CYCLES),
+               "ADC 连续采样率必须与 ADC 内核时钟和转换周期一致");
 
 #if SIGNAL_ADC_USE_CUBEMX_GENERATED
 #include "adc.h"
@@ -15,7 +20,6 @@ static DMA_HandleTypeDef g_adc2_dma;
 #define ADC_INTERNAL_ADC_HANDLE g_adc2
 #endif
 
-static TIM_HandleTypeDef *g_adc_trigger_timer;
 #if !SIGNAL_ADC_USE_CUBEMX_GENERATED
 static HAL_StatusTypeDef g_adc_msp_status;
 #endif
@@ -33,35 +37,12 @@ static volatile uint32_t g_adc_complete_count;
 static volatile uint32_t g_adc_error_count;
 static volatile uint32_t g_adc_overrun_count;
 
-static uint8_t adc_internal_timing_valid(const TIM_HandleTypeDef *timer)
+static uint8_t adc_internal_timing_valid(void)
 {
-    uint32_t timer_clock_hz;
     uint32_t adc_clock_hz;
-    uint64_t timer_divisor;
-    uint32_t sample_rate_hz;
 
-    if ((timer == NULL) || (timer->Instance != TIM7)) {
-        return 0U;
-    }
-
-    timer_clock_hz = HAL_RCC_GetPCLK1Freq();
-    if ((RCC->CFGR & RCC_CFGR_PPRE1) != 0U) {
-        timer_clock_hz *= 2U;
-    }
-    timer_divisor = ((uint64_t)timer->Init.Prescaler + 1ULL) *
-                    ((uint64_t)timer->Init.Period + 1ULL);
-    if ((timer_clock_hz == 0U) || (timer_divisor == 0ULL)) {
-        return 0U;
-    }
-
-    sample_rate_hz = (uint32_t)((uint64_t)timer_clock_hz / timer_divisor);
     adc_clock_hz = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_ADC12);
-    return ((sample_rate_hz <= ADC_INTERNAL_MAX_SAMPLE_RATE_HZ) &&
-            ((uint64_t)adc_clock_hz >=
-             ((uint64_t)sample_rate_hz *
-              ADC_INTERNAL_12BIT_TOTAL_CYCLES))) ?
-               1U :
-               0U;
+    return (adc_clock_hz == ADC_INTERNAL_ADC_CLOCK_HZ) ? 1U : 0U;
 }
 
 static void adc_internal_clear_state(void)
@@ -109,12 +90,12 @@ static HAL_StatusTypeDef adc_internal_configure_peripheral(void)
     ADC_INTERNAL_ADC_HANDLE.Init.ScanConvMode = ADC_SCAN_DISABLE;
     ADC_INTERNAL_ADC_HANDLE.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
     ADC_INTERNAL_ADC_HANDLE.Init.LowPowerAutoWait = DISABLE;
-    ADC_INTERNAL_ADC_HANDLE.Init.ContinuousConvMode = DISABLE;
+    ADC_INTERNAL_ADC_HANDLE.Init.ContinuousConvMode = ENABLE;
     ADC_INTERNAL_ADC_HANDLE.Init.NbrOfConversion = 1U;
     ADC_INTERNAL_ADC_HANDLE.Init.DiscontinuousConvMode = DISABLE;
-    ADC_INTERNAL_ADC_HANDLE.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T7_TRGO;
+    ADC_INTERNAL_ADC_HANDLE.Init.ExternalTrigConv = ADC_SOFTWARE_START;
     ADC_INTERNAL_ADC_HANDLE.Init.ExternalTrigConvEdge =
-        ADC_EXTERNALTRIGCONVEDGE_RISING;
+        ADC_EXTERNALTRIGCONVEDGE_NONE;
     ADC_INTERNAL_ADC_HANDLE.Init.DMAContinuousRequests = ENABLE;
     ADC_INTERNAL_ADC_HANDLE.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
     ADC_INTERNAL_ADC_HANDLE.Init.OversamplingMode = DISABLE;
@@ -143,28 +124,19 @@ static HAL_StatusTypeDef adc_internal_stop(void)
 {
     HAL_StatusTypeDef adc_status;
 
-    if (g_adc_trigger_timer == NULL) {
-        return HAL_ERROR;
-    }
-
-    (void)HAL_TIM_Base_Stop(g_adc_trigger_timer);
     adc_status = HAL_ADC_Stop_DMA(&ADC_INTERNAL_ADC_HANDLE);
     g_adc_running = 0U;
     return adc_status;
 }
 
-HAL_StatusTypeDef ADC_Internal_Init(TIM_HandleTypeDef *trigger_timer)
+HAL_StatusTypeDef ADC_Internal_Init(void)
 {
     HAL_StatusTypeDef status;
 
-    if ((trigger_timer == NULL) || (trigger_timer->Instance != TIM7)) {
-        return HAL_ERROR;
-    }
     if (g_adc_running != 0U) {
         return HAL_BUSY;
     }
 
-    g_adc_trigger_timer = trigger_timer;
     adc_internal_clear_state();
     adc_internal_clear_counters();
 
@@ -173,7 +145,7 @@ HAL_StatusTypeDef ADC_Internal_Init(TIM_HandleTypeDef *trigger_timer)
         g_adc_error_count++;
         return status;
     }
-    if (adc_internal_timing_valid(trigger_timer) == 0U) {
+    if (adc_internal_timing_valid() == 0U) {
         g_adc_error_count++;
         return HAL_ERROR;
     }
@@ -190,8 +162,7 @@ HAL_StatusTypeDef ADC_Internal_Start(void)
 {
     HAL_StatusTypeDef status;
 
-    if ((g_adc_trigger_timer == NULL) ||
-        (ADC_INTERNAL_ADC_HANDLE.Instance != ADC2) ||
+    if ((ADC_INTERNAL_ADC_HANDLE.Instance != ADC2) ||
         (ADC_INTERNAL_ADC_HANDLE.DMA_Handle == NULL)) {
         return HAL_ERROR;
     }
@@ -200,9 +171,6 @@ HAL_StatusTypeDef ADC_Internal_Start(void)
     }
 
     adc_internal_clear_state();
-    __HAL_TIM_SET_COUNTER(g_adc_trigger_timer, 0U);
-    __HAL_TIM_CLEAR_FLAG(g_adc_trigger_timer, TIM_FLAG_UPDATE);
-
     status = HAL_ADC_Start_DMA(
         &ADC_INTERNAL_ADC_HANDLE,
         (uint32_t *)&g_adc_input_buffer[0][0],
@@ -213,12 +181,6 @@ HAL_StatusTypeDef ADC_Internal_Start(void)
     }
 
     g_adc_running = 1U;
-    status = HAL_TIM_Base_Start(g_adc_trigger_timer);
-    if (status != HAL_OK) {
-        g_adc_running = 0U;
-        (void)HAL_ADC_Stop_DMA(&ADC_INTERNAL_ADC_HANDLE);
-        g_adc_error_count++;
-    }
     return status;
 }
 
@@ -305,6 +267,11 @@ uint32_t ADC_Internal_GetErrorCount(void)
 uint32_t ADC_Internal_GetOverrunCount(void)
 {
     return g_adc_overrun_count;
+}
+
+uint32_t ADC_Internal_GetSampleRateHz(void)
+{
+    return ADC_INTERNAL_SAMPLE_RATE_HZ;
 }
 
 #if !SIGNAL_ADC_USE_CUBEMX_GENERATED

@@ -7,6 +7,7 @@
 #define WAVEFORM_ANALYZER_CLIP_LOW_CODE 2U
 #define WAVEFORM_ANALYZER_CLIP_HIGH_CODE 4093U
 #define WAVEFORM_ANALYZER_MIN_PEAK_CODE 1.0f
+#define WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT 16U
 
 typedef struct {
     uint8_t initialized;
@@ -15,6 +16,38 @@ typedef struct {
 
 static waveform_analyzer_context_t g_waveform_analyzer;
 static waveform_analyzer_result_t g_waveform_analyzer_result;
+
+static void waveform_analyzer_update_low_extremes(
+    uint16_t sample,
+    uint16_t lows[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT])
+{
+    uint32_t position = WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT - 1U;
+
+    if (sample >= lows[position]) {
+        return;
+    }
+    while ((position > 0U) && (sample < lows[position - 1U])) {
+        lows[position] = lows[position - 1U];
+        --position;
+    }
+    lows[position] = sample;
+}
+
+static void waveform_analyzer_update_high_extremes(
+    uint16_t sample,
+    uint16_t highs[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT])
+{
+    uint32_t position = WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT - 1U;
+
+    if (sample <= highs[position]) {
+        return;
+    }
+    while ((position > 0U) && (sample > highs[position - 1U])) {
+        highs[position] = highs[position - 1U];
+        --position;
+    }
+    highs[position] = sample;
+}
 
 static void waveform_analyzer_clear_peaks(void)
 {
@@ -220,12 +253,21 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
 {
     uint16_t min_code = WAVEFORM_ANALYZER_ADC_MAX_CODE;
     uint16_t max_code = 0U;
+    uint16_t low_extremes[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT];
+    uint16_t high_extremes[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT];
     float dc_code = 0.0f;
     float square_sum = 0.0f;
 
     if ((g_waveform_analyzer.initialized == 0U) || (samples == NULL) ||
         (length < WAVEFORM_ANALYZER_FFT_SIZE)) {
         return HAL_ERROR;
+    }
+
+    for (uint32_t index = 0U;
+         index < WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT;
+         ++index) {
+        low_extremes[index] = WAVEFORM_ANALYZER_ADC_MAX_CODE;
+        high_extremes[index] = 0U;
     }
 
     for (uint32_t index = 0U; index < WAVEFORM_ANALYZER_FFT_SIZE; ++index) {
@@ -237,6 +279,8 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         if (sample > max_code) {
             max_code = sample;
         }
+        waveform_analyzer_update_low_extremes(sample, low_extremes);
+        waveform_analyzer_update_high_extremes(sample, high_extremes);
         /* Welford 单遍统计，避免为了 RMS 再扫描一次完整采样块。 */
         const float delta = (float)sample - dc_code;
         dc_code += delta / (float)(index + 1U);
@@ -264,7 +308,14 @@ HAL_StatusTypeDef Waveform_Analyzer_ProcessBlock(const uint16_t *samples,
         (max_code >= WAVEFORM_ANALYZER_CLIP_HIGH_CODE) ? 1U : 0U;
     g_waveform_analyzer_result.average_code =
         (uint16_t)(dc_code + 0.5f);
-    g_waveform_analyzer_result.peak_to_peak_code = max_code - min_code;
+    /*
+     * 原始最大值减最小值会被单个 ADC 毛刺抬高。8192 点内忽略两端各
+     * 15 个极端样本，使用第 16 小/大的码值估计峰峰值；原始极值仍
+     * 保留用于削顶判断和串口诊断。
+     */
+    g_waveform_analyzer_result.peak_to_peak_code =
+        high_extremes[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT - 1U] -
+        low_extremes[WAVEFORM_ANALYZER_EXTREME_TRIM_COUNT - 1U];
     g_waveform_analyzer_result.dc_code = dc_code;
     g_waveform_analyzer_result.rms_code =
         sqrtf(square_sum / (float)WAVEFORM_ANALYZER_FFT_SIZE);
