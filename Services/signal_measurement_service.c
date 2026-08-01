@@ -9,6 +9,13 @@
 #define SIGNAL_MEASUREMENT_MIN_VALID_P2P_MV 20.0f
 #define SIGNAL_MEASUREMENT_MIN_COMPONENT_PEAK_MV 5.0f
 #define SIGNAL_MEASUREMENT_HARMONIC_TOLERANCE_HZ 1000.0f
+#define SIGNAL_MEASUREMENT_PHASE_COHERENCE_TOLERANCE_RAD 0.40f
+#define SIGNAL_MEASUREMENT_PHASE_RELAXED_TOLERANCE_RAD 2.00f
+#define SIGNAL_MEASUREMENT_PHASE_RELAXED_MAX_BASE_HZ 15000.0f
+#define SIGNAL_MEASUREMENT_PHASE_RELAXED_MIN_ORDER 20U
+#define SIGNAL_MEASUREMENT_PHASE_RELAXED_MIN_AMPLITUDE_RATIO 0.30f
+#define SIGNAL_MEASUREMENT_HALF_PI_RAD 1.5707963268f
+#define SIGNAL_MEASUREMENT_PI_RAD 3.1415926536f
 #define SIGNAL_MEASUREMENT_HISTORY_FREQUENCY_RESET_HZ 250.0f
 #define SIGNAL_MEASUREMENT_RECONSTRUCTION_POINT_COUNT 1000U
 
@@ -365,6 +372,71 @@ static uint8_t signal_measurement_matches_harmonic(
     return 1U;
 }
 
+static float signal_measurement_wrap_phase(float phase_rad)
+{
+    const float two_pi = 2.0f * SIGNAL_MEASUREMENT_PI_RAD;
+
+    while (phase_rad > SIGNAL_MEASUREMENT_PI_RAD) {
+        phase_rad -= two_pi;
+    }
+    while (phase_rad < -SIGNAL_MEASUREMENT_PI_RAD) {
+        phase_rad += two_pi;
+    }
+    return phase_rad;
+}
+
+static uint8_t signal_measurement_phase_matches_harmonic(
+    float candidate_phase_rad,
+    float base_phase_rad,
+    uint8_t harmonic_order,
+    float candidate_amplitude_code,
+    float base_amplitude_code,
+    float base_frequency_hz)
+{
+    float expected_phase_rad;
+    float residual_rad;
+    float tolerance_rad =
+        SIGNAL_MEASUREMENT_PHASE_COHERENCE_TOLERANCE_RAD;
+
+    if ((isfinite(candidate_phase_rad) == 0) ||
+        (isfinite(base_phase_rad) == 0) ||
+        (harmonic_order == 0U)) {
+        return 0U;
+    }
+
+    /*
+     * 题目输入为零初相正弦。估相器以余弦为基准，因此 n 次谐波应满足：
+     * phase_n = n * phase_1 + (n - 1) * pi / 2。
+     * 统一采样起点和近似线性相移都会在该关系中相消。
+     */
+    expected_phase_rad =
+        ((float)harmonic_order * base_phase_rad) +
+        ((float)(harmonic_order - 1U) *
+         SIGNAL_MEASUREMENT_HALF_PI_RAD);
+    residual_rad = signal_measurement_wrap_phase(
+        candidate_phase_rad - expected_phase_rad);
+
+    /*
+     * 基波接近 10 kHz 量程下限时，高阶谐波相位残差会被阶次放大。
+     * 仅对“低基频 + 高阶次 + 强分量”放宽相位门限；弱混叠伪峰仍使用
+     * 0.40 rad 严格门限，避免恢复为按整数频率关系误选干扰峰。
+     */
+    if ((base_frequency_hz <=
+         SIGNAL_MEASUREMENT_PHASE_RELAXED_MAX_BASE_HZ) &&
+        (harmonic_order >= SIGNAL_MEASUREMENT_PHASE_RELAXED_MIN_ORDER) &&
+        (base_amplitude_code > 0.0f) &&
+        (candidate_amplitude_code >=
+         (SIGNAL_MEASUREMENT_PHASE_RELAXED_MIN_AMPLITUDE_RATIO *
+          base_amplitude_code))) {
+        tolerance_rad =
+            SIGNAL_MEASUREMENT_PHASE_RELAXED_TOLERANCE_RAD;
+    }
+
+    return (fabsf(residual_rad) <= tolerance_rad) ?
+               1U :
+               0U;
+}
+
 static uint8_t signal_measurement_select_harmonic_family(
     const waveform_analyzer_result_t *analysis,
     uint8_t *selected_indices)
@@ -385,18 +457,29 @@ static uint8_t signal_measurement_select_harmonic_family(
         for (uint8_t candidate = base;
              candidate < analysis->peak_count;
              ++candidate) {
+            uint8_t harmonic_order;
+
             if (signal_measurement_matches_harmonic(
                     analysis->peak_frequencies_hz[candidate],
                     analysis->peak_frequencies_hz[base],
                     analysis->bin_resolution_hz,
-                    NULL) != 0U) {
+                    &harmonic_order) != 0U &&
+                signal_measurement_phase_matches_harmonic(
+                    analysis->peak_phases_rad[candidate],
+                    analysis->peak_phases_rad[base],
+                    harmonic_order,
+                    analysis->peak_amplitudes_code[candidate],
+                    analysis->peak_amplitudes_code[base],
+                    analysis->peak_frequencies_hz[base]) != 0U) {
                 count++;
                 score += analysis->peak_amplitudes_code[candidate];
             }
         }
 
-        if ((count > best_count) ||
-            ((count == best_count) && (score > best_score))) {
+        /* 至少形成两条谐波后按总能量选族，避免多条弱混叠峰抢占基波。 */
+        if ((count >= 2U) &&
+            ((best_count < 2U) || (score > best_score) ||
+             ((score == best_score) && (count > best_count)))) {
             best_base = base;
             best_count = count;
             best_score = score;
@@ -423,6 +506,7 @@ static uint8_t signal_measurement_select_harmonic_family(
              candidate < analysis->peak_count;
              ++candidate) {
             uint8_t already_selected = 0U;
+            uint8_t harmonic_order;
 
             for (uint8_t selected = 0U;
                  selected < best_count;
@@ -439,7 +523,14 @@ static uint8_t signal_measurement_select_harmonic_family(
                      analysis->peak_frequencies_hz[candidate],
                      analysis->peak_frequencies_hz[best_base],
                      analysis->bin_resolution_hz,
-                     NULL) != 0U)) {
+                     &harmonic_order) != 0U) &&
+                (signal_measurement_phase_matches_harmonic(
+                     analysis->peak_phases_rad[candidate],
+                     analysis->peak_phases_rad[best_base],
+                     harmonic_order,
+                     analysis->peak_amplitudes_code[candidate],
+                     analysis->peak_amplitudes_code[best_base],
+                     analysis->peak_frequencies_hz[best_base]) != 0U)) {
                 strongest_index = candidate;
                 strongest_amplitude =
                     analysis->peak_amplitudes_code[candidate];

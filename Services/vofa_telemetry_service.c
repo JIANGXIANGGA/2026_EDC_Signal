@@ -38,6 +38,24 @@ static uint32_t vofa_telemetry_scale_nonnegative(float value, float scale)
     return (uint32_t)(scaled + 0.5f);
 }
 
+static int32_t vofa_telemetry_scale_signed(float value, float scale)
+{
+    const float scaled = value * scale;
+
+    if (isfinite(scaled) == 0) {
+        return 0;
+    }
+    if (scaled >= (float)INT32_MAX) {
+        return INT32_MAX;
+    }
+    if (scaled <= (float)INT32_MIN) {
+        return INT32_MIN;
+    }
+    return (int32_t)((scaled >= 0.0f) ?
+                         (scaled + 0.5f) :
+                         (scaled - 0.5f));
+}
+
 static uint32_t vofa_telemetry_component_frequency(
     const signal_measurement_result_t *measurement,
     uint8_t index)
@@ -96,6 +114,17 @@ static uint32_t vofa_telemetry_peak_amplitude_code_x100(
     }
     return vofa_telemetry_scale_nonnegative(
         analysis->peak_amplitudes_code[index], 100.0f);
+}
+
+static int32_t vofa_telemetry_peak_phase_mrad(
+    const waveform_analyzer_result_t *analysis,
+    uint8_t index)
+{
+    if ((analysis == NULL) || (index >= analysis->peak_count)) {
+        return 0;
+    }
+    return vofa_telemetry_scale_signed(
+        analysis->peak_phases_rad[index], 1000.0f);
 }
 
 HAL_StatusTypeDef VOFA_Telemetry_Service_Init(void)
@@ -188,6 +217,11 @@ HAL_StatusTypeDef VOFA_Telemetry_Service_Process(void)
         "peak_count:%u,raw_f1_hz:%lu,raw_a1_code_x100:%lu,"
         "raw_f2_hz:%lu,raw_a2_code_x100:%lu,"
         "raw_f3_hz:%lu,raw_a3_code_x100:%lu,"
+        "raw_f4_hz:%lu,raw_a4_code_x100:%lu,"
+        "raw_f5_hz:%lu,raw_a5_code_x100:%lu,"
+        "raw_f6_hz:%lu,raw_a6_code_x100:%lu,"
+        "raw_p1_mrad:%ld,raw_p2_mrad:%ld,raw_p3_mrad:%ld,"
+        "raw_p4_mrad:%ld,raw_p5_mrad:%ld,raw_p6_mrad:%ld,"
         "upp_mv_x10:%lu,urms_mv_x10:%lu,comp_count:%u,avg_count:%u,"
         "f1_hz:%lu,a1_mv_x10:%lu,f2_hz:%lu,a2_mv_x10:%lu,"
         "f3_hz:%lu,a3_mv_x10:%lu,p2p_spread_mv_x10:%lu,"
@@ -231,6 +265,21 @@ HAL_StatusTypeDef VOFA_Telemetry_Service_Process(void)
         (unsigned long)vofa_telemetry_peak_frequency(analysis, 2U),
         (unsigned long)vofa_telemetry_peak_amplitude_code_x100(
             analysis, 2U),
+        (unsigned long)vofa_telemetry_peak_frequency(analysis, 3U),
+        (unsigned long)vofa_telemetry_peak_amplitude_code_x100(
+            analysis, 3U),
+        (unsigned long)vofa_telemetry_peak_frequency(analysis, 4U),
+        (unsigned long)vofa_telemetry_peak_amplitude_code_x100(
+            analysis, 4U),
+        (unsigned long)vofa_telemetry_peak_frequency(analysis, 5U),
+        (unsigned long)vofa_telemetry_peak_amplitude_code_x100(
+            analysis, 5U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 0U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 1U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 2U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 3U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 4U),
+        (long)vofa_telemetry_peak_phase_mrad(analysis, 5U),
         (unsigned long)upp_x10,
         (unsigned long)u_x10,
         (unsigned int)measurement->component_count,

@@ -14,13 +14,13 @@
 #define ONE_HMI_WAVEFORM_REFRESH_MS 250U
 #define ONE_HMI_WAVEFORM_PAGE_TIMEOUT_MS 200U
 #define ONE_HMI_WAVEFORM_TRANSFER_TIMEOUT_MS 1000U
-#define ONE_HMI_TIME_DISPLAY_MIN 16U
-#define ONE_HMI_TIME_DISPLAY_MAX 239U
+#define ONE_HMI_TIME_DISPLAY_MIN 8U
+#define ONE_HMI_TIME_DISPLAY_MAX 153U
 #define ONE_HMI_SPECTRUM_DISPLAY_MIN 8U
-#define ONE_HMI_SPECTRUM_DISPLAY_MAX 239U
+#define ONE_HMI_SPECTRUM_DISPLAY_MAX 155U
 #define ONE_HMI_SPECTRUM_LEFT_MARGIN_POINTS 6U
 #define ONE_HMI_SPECTRUM_RIGHT_MARGIN_POINTS 6U
-#define ONE_HMI_SPECTRUM_LINE_HALF_WIDTH_POINTS 2U
+#define ONE_HMI_SPECTRUM_LINE_HALF_WIDTH_POINTS 0U
 #define ONE_HMI_SPECTRUM_RIGHT_HEADROOM_RATIO 1.10f
 #define ONE_HMI_MEASUREMENT_FIELD_COUNT 14U
 #define ONE_HMI_MEASUREMENT_REFRESH_MS 200U
@@ -197,7 +197,7 @@ static void one_hmi_spectrum_apply_display_direction(void)
 #endif
 }
 
-/* 波形控件无法绘制真正的竖线，用窄脉冲增强单像素谱线的可见度。 */
+/* 波形控件每个横坐标只能传一个纵坐标，使用单采样点显示窄谱线。 */
 static void one_hmi_spectrum_draw_line(uint32_t center_x, uint8_t y)
 {
     const uint32_t first =
